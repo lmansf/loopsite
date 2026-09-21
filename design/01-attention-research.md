@@ -171,3 +171,214 @@ Evidence grades: **A** = robust replicated experimental/behavioral-economics sup
 **Implementation:** Live/near-live activity — "142 loops running right now", a ticker of recent anonymous actions, a heatmap of what others explored. Specific, verifiable, low-stakes. Static logo walls are near-useless for a novel concept.
 **Failure mode:** **Fabricated social proof is fraud** — never invent counts or activity. If the real numbers are small, use them honestly or use a different mechanic. Also, low numbers displayed prominently are *negative* social proof ("3 people have visited") — show a number only if it's impressive or reframed (total-since-launch, or a non-count like "most explored today").
 
+---
+
+## 3. What makes people click DEEPER rather than just scroll
+
+Scrolling is cheap and low-commitment; clicking is a decision. A click-through requires the user to believe the destination is **specific, near, and cheap to undo**.
+
+### 3.1 Link design that earns clicks
+- **Descriptive, information-scented labels.** Information Foraging Theory (Pirolli & Card) is the operative model: users follow "scent" — cues that predict the value of a destination. "Read more" has zero scent. "See how loop #7 broke" has high scent. **Ban generic labels sitewide.**
+- **Make links look like links.** In body copy: underlined and color-differentiated. Contrast ≥4.5:1 against background and ≥3:1 against surrounding text if distinguished by color.
+- **Show the destination's shape.** A label plus a type/size cue ("Interactive · ~40s", "3 min read", "12 items") reduces uncertainty cost, which is the main reason people don't click.
+- **Target size:** ≥44×44px effective hit area on all devices (WCAG 2.2 AA requires ≥24×24 CSS px; we hold to the Apple 44pt / Material 48dp standard). Extend the hit area with padding or a `::after` overlay, not by making text huge.
+
+### 3.2 "Next" affordances
+- **One unambiguous Next per screen**, in a consistent location, that *names the next thing* rather than saying "Next" (serial-position and scent both improve).
+- **Bottom-of-content "next" is mandatory.** A page whose content ends with whitespace is a page that ends the session. The end of every unit must present the next unit at full salience — a large card, not a text link.
+- **Keyboard/`J`-style advancement** and a visible keyboard hint for power users; `→`/`←` where the structure is sequential (but never steal arrow keys from a scrolling page — bind them only within a focused component).
+- **Persistent progress + position.** "3 / 12" tells the user the cost of continuing, which is what makes continuing feel safe.
+
+### 3.3 Teaser cards (the workhorse)
+Optimal card anatomy, in priority order:
+1. **Visual** — distinct per card (never repeated stock), aspect-ratio locked, lazy-loaded below the fold with `decoding="async"`.
+2. **Specific title** containing a concrete noun or number.
+3. **One-line gap-opening subline** — states the setup, withholds the resolution.
+4. **Metadata chip** — type, duration, difficulty, or count. Reduces uncertainty.
+5. **A state marker** — unvisited / visited / new. Visited-state marking is one of the oldest and best-supported web usability findings (it prevents re-treading and highlights the unexplored).
+6. **Whole card is the hit target**, with hover elevation + scale ≤1.02 and a real `<a>` wrapping it (so middle-click, right-click, and screen readers all work).
+
+Card count: show **6–9** at a decision point. Below 4 feels thin; above ~12 triggers choice paralysis (Hick's Law; the Iyengar & Lepper jam study is the canonical illustration even if its effect size is contested — the direction is safe).
+
+### 3.4 Unresolved questions as navigation
+Make headings and card titles *questions the user cannot answer from the card alone but feels they nearly could*. Two patterns that work:
+- **Partial reveal:** show the artifact but blur/crop/redact the payload. The user clicks to un-redact.
+- **Counterfactual:** "Everyone who tried this got the same answer. Except one." — a specific anomaly is irresistible.
+
+### 3.5 Choose-your-path structures
+Branching converts a reader into an author. Implementation:
+- Offer **exactly 2–3 branches**, labeled by outcome not mechanism ("Show me the fast version" / "Take me through it").
+- Branches must be **real** (different content) and **reversible** (an always-visible "other path" affordance). Irreversible choices with unknown stakes cause hesitation and bounce.
+- Each branch is a distinct URL (History API `pushState` at minimum) so back works, sharing works, and analytics can see depth.
+- Pair with endowed progress: choosing a path immediately advances the progress indicator.
+
+---
+
+## 4. Accessibility & reduced-motion: excluded users bounce at 100%
+
+Every accessibility failure is a bounce with extra steps. ~15–20% of users have a disability; a meaningful fraction of all users enable reduced motion; keyboard and screen-reader users are disproportionately likely to be high-intent.
+
+**Non-negotiables:**
+
+1. **`prefers-reduced-motion: reduce`** — not "disable animation", *substitute* it. Parallax → static composition. Scroll-triggered slide-ins → instant opacity-only fade ≤150ms, or no transition. Auto-playing loops → a still frame with a play control. Cursor-reactive physics → a calm, non-moving alternative that still looks designed. The reduced-motion experience must be a first-class design, not a stripped carcass — otherwise we've just moved the bounce.
+   ```css
+   @media (prefers-reduced-motion: reduce) {
+     *, *::before, *::after {
+       animation-duration: .01ms !important;
+       animation-iteration-count: 1 !important;
+       transition-duration: .01ms !important;
+       scroll-behavior: auto !important;
+     }
+   }
+   ```
+   Plus a JS guard: `const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches` to skip initializing motion systems entirely (saves CPU too). Also respect `prefers-reduced-transparency` and `prefers-contrast`.
+2. **Keyboard parity.** Every interaction reachable by `Tab`, activatable by `Enter`/`Space`. Logical DOM order == visual order. A visible `:focus-visible` ring everywhere, never `outline: none` without a replacement. A skip-link as the first focusable element. No keyboard traps; `Escape` closes anything overlaid.
+3. **Screen readers.** Semantic HTML first (`<main>`, `<nav>`, `<section>` with `aria-labelledby`, real headings in order, real buttons and links). Canvas/WebGL centerpieces need a parallel text/DOM representation — an `aria-label` plus an adjacent, readable summary of the same information. Dynamic updates (progress, collection counts, new content) go in `aria-live="polite"` regions. Decorative motion gets `aria-hidden="true"`.
+4. **Color & contrast.** ≥4.5:1 body text, ≥3:1 large text and UI/graphical objects. Never encode state (visited, found, active) in color alone — add a shape, icon, or label.
+5. **Zoom & reflow.** Usable at 200% zoom and at 320 CSS px width with no horizontal scroll. Don't disable pinch-zoom (`maximum-scale=1` is banned).
+6. **No time limits.** No auto-advancing content, no disappearing-after-Ns affordances, no timeouts.
+7. **Works without JS for the core message.** The value proposition, primary nav, and primary content must be in the initial HTML. Enhancement layers on top.
+
+---
+
+## 5. Mobile-first specifics (≈60% of traffic; ~52–60% depending on measurement method)
+
+Mobile bounces ~12 points worse than desktop by default. We must design mobile as the primary case and desktop as the enhancement.
+
+- **Thumb zone.** On a one-handed grip, the comfortable reach is the lower ~⅔ of the screen, biased toward the dominant-thumb side; the top corners are the hardest reach. **Primary actions go bottom-center**, in a fixed bar with `padding-bottom: env(safe-area-inset-bottom)`. Top-right hamburgers are the worst-placed control on a modern phone.
+- **Touch targets.** ≥44×44 CSS px, with ≥8px of spacing between adjacent targets. Measure the *hit area*, not the glyph.
+- **Viewport height.** `100vh` is wrong on mobile — it's the largest viewport, so content is cut off behind browser chrome. Use `100dvh` (with `100vh` as the fallback declaration first) or, better, `min-height: 100svh` for hero sections so nothing critical hides. Test with the URL bar both expanded and collapsed.
+- **No hover.** Gate hover effects behind `@media (hover: hover) and (pointer: fine)`. Every hover-revealed piece of information must also be visible or tap-revealed on touch. Beware the "first tap = hover" double-tap bug.
+- **Touch equivalents for pointer mechanics.** Cursor-reactive hero → `touchmove` drag, device-tilt (`deviceorientation`, permission-gated on iOS), or a self-running ambient animation. Never ship a hero whose only interaction requires a mouse.
+- **Weight budget.** ≤200KB critical path (HTML+CSS+blocking JS), ≤1MB total first-viewport payload, ≤3 fonts files. Responsive images via `srcset`/`sizes` and AVIF/WebP with fallbacks.
+- **Text.** ≥16px body (prevents iOS input zoom), line length 35–50 characters, ≥1.5 line-height. No text over busy imagery without a scrim.
+- **Gestures.** Support vertical scroll natively; never intercept it. Horizontal card rails must use CSS scroll-snap with visible partial next-card ("peek") so the affordance is obvious, plus `overscroll-behavior-x: contain`.
+- **Layout.** No horizontal overflow at 320px. Sticky headers ≤56px and auto-hiding on scroll-down.
+
+---
+
+## 6. The 100-point Bounce-Risk Audit
+
+An auditor agent applies this to the built site. **Score only what is verifiable in the artifact** (code inspection, rendered DOM, simulated conditions). Every item is scored 0 / partial / full. Default to zero when ambiguous — this rubric is deliberately strict.
+
+### Category A — Speed & Stability (20 pts) — gates the 0–3s window
+| # | Item | Pts |
+|---|---|---|
+| A1 | First meaningful content present in initial HTML (no JS required to see the value prop) | 5 |
+| A2 | Critical path ≤200KB; no render-blocking third-party scripts | 4 |
+| A3 | Zero layout shift: all media/embeds have reserved dimensions or `aspect-ratio`; fonts metric-matched or `font-display: optional` | 4 |
+| A4 | Hero interactive (responds to input) within 1s; no hydration dependency for first interaction | 4 |
+| A5 | No spinner/skeleton occupying the first viewport | 3 |
+
+### Category B — Instant Comprehension (17 pts) — the 3–10s window
+| # | Item | Pts |
+|---|---|---|
+| B1 | "What is this?" answerable from the first viewport in ≤8 plain words, above the fold at 360×640 | 6 |
+| B2 | Exactly one primary CTA; ≤2 competing visual attractors in first viewport | 4 |
+| B3 | A concrete, specific instance shown (not only abstraction) in the first viewport | 4 |
+| B4 | No carousel, no entry modal, no interstitial, no autoplay audio, no gate before value | 3 |
+
+### Category C — Interaction & Agency (16 pts)
+| # | Item | Pts |
+|---|---|---|
+| C1 | An input-reactive element in the first viewport, working on **both** pointer and touch | 6 |
+| C2 | Interaction feedback <100ms; INP budget <150ms | 4 |
+| C3 | ≥3 distinct kinds of interaction available within the first two screens | 3 |
+| C4 | Every interactive element has hover + focus-visible + active states and ≥2 visual signifiers | 3 |
+
+### Category D — Open Loops & Exploration Pull (17 pts)
+| # | Item | Pts |
+|---|---|---|
+| D1 | Every viewport ends unresolved (no screen is a closed statement) | 4 |
+| D2 | A persistent progress/collection indicator, non-zero on arrival (endowed progress) | 4 |
+| D3 | A finite, countable set (7–12) with visible unexplored slots | 4 |
+| D4 | A "one more" control that is fixed, instant (<300ms), and never relocates | 3 |
+| D5 | ≥1 genuine surprise/variable-reward element, with no scarcity/timer/punishment mechanics | 2 |
+
+### Category E — Depth & Click-Through Architecture (10 pts)
+| # | Item | Pts |
+|---|---|---|
+| E1 | Zero generic link labels ("read more", "click here", "learn more") anywhere | 3 |
+| E2 | Bottom of every content unit presents a full-salience next unit | 3 |
+| E3 | Teaser cards carry visual + specific title + gap subline + metadata + visited state | 2 |
+| E4 | Branch/path choice offered with 2–3 reversible, real, URL-addressable options | 2 |
+
+### Category F — Mobile (10 pts)
+| # | Item | Pts |
+|---|---|---|
+| F1 | No horizontal overflow at 320px; usable at 200% zoom; pinch-zoom not disabled | 3 |
+| F2 | Primary action in the thumb zone with safe-area padding | 3 |
+| F3 | All targets ≥44px with ≥8px spacing | 2 |
+| F4 | `dvh`/`svh` used for full-height sections; nothing critical hidden by browser chrome | 2 |
+
+### Category G — Accessibility (10 pts) — hard gate, see below
+| # | Item | Pts |
+|---|---|---|
+| G1 | Full `prefers-reduced-motion` alternative that is *designed*, not stripped | 3 |
+| G2 | Complete keyboard operability, logical order, visible focus, skip link, no traps | 3 |
+| G3 | Semantic structure + `aria-live` for dynamic state + text equivalent for any canvas/WebGL centerpiece | 2 |
+| G4 | Contrast ≥4.5:1 text / ≥3:1 UI; no state encoded by color alone | 2 |
+
+**Category totals: A 20 + B 17 + C 16 + D 17 + E 10 + F 10 + G 10 = 100.**
+
+### Category H — Trust & Anti-Dark-Pattern (−) — penalties, applied after scoring
+| Violation | Penalty |
+|---|---|
+| Any entry modal, exit-intent popup, or content-obscuring overlay before 30s/50% scroll | **−15** |
+| Fabricated social proof, fake counts, fake scarcity, countdown timers | **−15** |
+| Scroll-jacking or any override of native scroll distance/direction | **−12** |
+| Sign-up/email wall before any value delivered | **−12** |
+| Curiosity gap whose payoff is smaller than the promise (clickbait) | **−8** |
+| Progress indicator not backed by real state | **−6** |
+| Infinite feed with no visible end state | **−5** |
+| Autoplay audio | **−10** |
+
+### Score → estimated non-bounce mapping
+
+| Score | Estimated non-bounce (10s + interaction) | Verdict |
+|---|---|---|
+| 92–100 | **≥90%** | Meets the target |
+| 85–91 | 82–89% | Close; fix the gaps in A, B, C first |
+| 75–84 | 70–81% | Better than median, misses the mandate |
+| 60–74 | 55–69% | Ordinary good site |
+| <60 | <55% | At or below industry median |
+
+**Hard gates (failing any one caps the total at 74 regardless of points earned):**
+- A1 or A4 scored zero (page is slow or dead on arrival)
+- B1 scored zero (nobody knows what this is)
+- Any Category H penalty ≥12 applied
+- Category G total <6 (accessibility exclusion = guaranteed bounce for a whole user class)
+
+Rationale for the 92 threshold: getting from a median ~53% engagement to 90% requires *simultaneously* eliminating mechanical bounce (A), comprehension bounce (B), and motivation bounce (C/D). Partial credit across categories produces partial results; the mapping is deliberately super-linear at the top because the last 8 points are the ones that convert "good site" into "site people don't leave."
+
+---
+
+## 7. Top 15 design mandates, ordered by expected impact on the 90% target
+
+1. **Server-render the value proposition.** The headline, the concrete example, and the primary control exist in the initial HTML bytes. No JS dependency, no spinner, no skeleton in the first viewport. *(Kills the largest bounce bucket: 0–3s mechanical failure.)*
+2. **LCP <1.5s, CLS <0.02, INP <150ms on mid-tier Android over 4G.** Treat these as build-breaking thresholds, not aspirations. 1s→3s is +32% bounce probability; 1s→5s is +90%.
+3. **Answer "what is this?" in ≤8 plain words, above the fold at 360×640,** paired with one concrete instance. Clever before clear is the #1 self-inflicted wound.
+4. **Ship one input-reactive hero element that is alive at first paint** and works on touch as well as pointer. Agency in the first second converts a reader into a participant.
+5. **Zero overlays, gates, modals, or audio for the first 30 seconds and 50% scroll.** No consent wall over the hero, no newsletter popup, no sign-in. This is a hard prohibition, not a preference.
+6. **Every viewport ends unresolved.** No screen may be a complete, closed statement. Audit screen-by-screen at 360×640 and 1440×900.
+7. **Non-zero progress on arrival.** A visible indicator that already shows movement before the user has done anything (endowed progress ≈ doubled completion in the canonical study).
+8. **A finite collectible set of 7–12 with visible empty slots**, persisted locally, never gated behind an account.
+9. **One fixed "one more" control** — same position always, <300ms transition, no page reload, count visible.
+10. **Novel surface, conventional skeleton.** All the weirdness in typography, color, motion, and the central interaction; none of it in navigation, scroll, links, or the back button. Never scroll-jack.
+11. **Ban generic link labels and dead-end page bottoms.** Every content unit terminates in a full-salience, specifically-labeled next unit — information scent is what converts scrollers into clickers.
+12. **Design the reduced-motion experience as a first-class variant,** not a disabled one — and gate all motion systems behind the media query in JS so they never even initialize.
+13. **Mobile is the primary target:** thumb-zone primary action with safe-area padding, ≥44px targets with ≥8px gaps, `dvh`/`svh` heights, no hover-only information, ≤200KB critical path.
+14. **Full keyboard + screen-reader parity, including a text equivalent for any canvas/WebGL centerpiece.** Excluded users bounce at 100%, and this is also the cheapest category to lose points in.
+15. **No dark patterns, ever** — no fake counts, no countdowns, no scarcity, no exit-intent, no streak punishment. Variable reward selects *which* good thing appears, never *whether* one does. One betrayal disables every curiosity mechanic on the site permanently.
+
+---
+
+### Sources
+- [Google / Think with Google — mobile page speed benchmarks](https://business.google.com/ca-en/think/marketing-strategies/mobile-page-speed-new-industry-benchmarks/)
+- [NN/g — How Long Do Users Stay on Web Pages?](https://www.nngroup.com/articles/how-long-do-users-stay-on-web-pages/)
+- [NN/g — Website Response Times](https://www.nngroup.com/articles/website-response-times/)
+- [web.dev — How the Core Web Vitals thresholds were defined](https://web.dev/articles/defining-core-web-vitals-thresholds)
+- [CXL — What is a good bounce rate? Industry benchmarks](https://cxl.com/guides/bounce-rate/benchmarks/)
+- [Bounce Rate Benchmarks 2026: Industry and Channel Data](https://www.digitalapplied.com/blog/bounce-rate-benchmarks-2026-industry-channel-data)
+- [Statista — Mobile web traffic share worldwide](https://www.statista.com/statistics/277125/share-of-website-traffic-coming-from-mobile-devices/)
+- Loewenstein (1994) information-gap theory; Nunes & Drèze (2006) endowed progress; Berlyne inverted-U; Pirolli & Card information foraging; Norman affordances/signifiers; Shneiderman direct manipulation; WCAG 2.2 AA.
