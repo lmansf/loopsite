@@ -22,7 +22,7 @@
 import { useEffect, useRef } from 'react';
 import { subscribeFrame } from '@/lib/clock';
 import { subscribeNodes } from '@/lib/ring-store';
-import { pointAt } from '@/lib/ring-geometry';
+import { pointAt, radiusOfLevel } from '@/lib/ring-geometry';
 import { rgba } from '@/lib/tokens';
 import { mulberry32 } from '@/lib/rng';
 import type { RingNode, SectionProps } from '@/lib/types';
@@ -344,17 +344,17 @@ export default function Room(props: SectionProps) {
       if (prev && k < 1) drawFern(ctx, prev, 1 - k, false);
       drawFern(ctx, cur, k, glow);
 
-      // the seed: a warm point where the fern leaves the loop
+      // the seed: a warm point where the fern leaves the loop (no allocation:
+      // the base point is computed inline rather than through pointAt)
       const baseNode = latest[0];
-      const base = pointAt(
-        baseNode ? baseNode.a : DEFAULT_BASE_A,
-        baseNode ? baseNode.r : DEFAULT_BASE_R,
-        g,
-      );
+      const baseA = (baseNode ? baseNode.a : DEFAULT_BASE_A) * Math.PI * 2;
+      const baseRho = radiusOfLevel(baseNode ? baseNode.r : DEFAULT_BASE_R, g.R);
+      const baseX = g.cx + baseRho * Math.sin(baseA);
+      const baseY = g.cy - baseRho * Math.cos(baseA);
       if (baseGrad) {
         const pulse = reduced ? 0.8 : 0.72 + 0.18 * Math.sin(clock.phase * Math.PI * 2);
         ctx.save();
-        ctx.translate(base.x, base.y);
+        ctx.translate(baseX, baseY);
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = pulse * k;
         ctx.fillStyle = baseGrad;
@@ -366,7 +366,7 @@ export default function Room(props: SectionProps) {
       ctx.fillStyle = styleEmber;
       ctx.globalAlpha = k;
       ctx.beginPath();
-      ctx.arc(base.x, base.y, 2.2, 0, Math.PI * 2);
+      ctx.arc(baseX, baseY, 2.2, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
 
