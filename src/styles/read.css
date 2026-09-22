@@ -40,7 +40,6 @@
   /* A serif at 17 px, light on dark, goes spindly under forced greyscale
      antialiasing. The body sets it for the UI voice; the story opts out. */
   -webkit-font-smoothing: auto;
-  text-rendering: optimizeLegibility;
 }
 .blk {
   display: flow-root;                 /* the float never escapes its paragraph */

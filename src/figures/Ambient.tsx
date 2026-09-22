@@ -50,7 +50,7 @@ import type { Figure } from './types';
  */
 
 /** The ceiling, and the only alpha in the ambient layer. §C.16: never above 8 %. */
-const BASE = 0.07;
+const BASE = 0.08;
 
 /** The authored still (§C.16). Every figure's complete, at-rest composition. */
 const STILL = 0.25;

@@ -101,10 +101,14 @@
    with an inner hairline; at 10 px that is a bullseye, and a bullseye reads as
    hollow, which collapses the only difference `read` has from `unread`. The
    hairline is dropped and the fill does the work. */
+/* The hollow ring is --c-text-muted, not --c-border-strong: the mark is the
+   state, so it is a meaningful graphic and owes 3 : 1 against the ground
+   (WCAG 1.4.11). --c-border-strong is 1.84 : 1 in the light scheme and would
+   make `unread` a rumour. --c-text-muted is 5.47 : 1 in both. */
 .night .mark {
   position: relative;
   width: 10px; height: 10px; border-radius: 999px;
-  border: 1px solid var(--c-border-strong); background: transparent;
+  border: 1px solid var(--c-text-muted); background: transparent;
   align-self: end;
 }
 .night > a[data-state="read"] .mark,

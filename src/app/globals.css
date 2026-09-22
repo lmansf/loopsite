@@ -317,13 +317,15 @@ html[data-loop-js] #section-four-seconds .blk.choice:not([data-held]) { display:
   width:100%; height:100%;
   pointer-events:none;
   /* Restraint, enforced by the layer rather than by each figure: the mask
-     holds the figure back to a third of its strength across the middle of the
-     screen, which is exactly where the reading column is, and lets it up only
-     out at the edges. Behind a line of prose the figure is under 3 % alpha. */
-  -webkit-mask-image:radial-gradient(125% 95% at 50% 46%,
-    rgb(0 0 0 / .30) 0%, rgb(0 0 0 / .32) 34%, rgb(0 0 0 / 1) 88%);
-          mask-image:radial-gradient(125% 95% at 50% 46%,
-    rgb(0 0 0 / .30) 0%, rgb(0 0 0 / .32) 34%, rgb(0 0 0 / 1) 88%);
+     holds the figure to a little over half its strength across the middle of
+     the screen, which is exactly where the reading column is, and lets it up
+     to full only out at the edges where there is nothing to read. At the
+     ceiling of 8 % that is 4.4 % alpha behind a line of prose, which takes
+     17.5 : 1 body text to 14.8 : 1 — four times the 4.5 : 1 it has to clear. */
+  -webkit-mask-image:radial-gradient(130% 100% at 50% 46%,
+    rgb(0 0 0 / .55) 0%, rgb(0 0 0 / .58) 36%, rgb(0 0 0 / 1) 92%);
+          mask-image:radial-gradient(130% 100% at 50% 46%,
+    rgb(0 0 0 / .55) 0%, rgb(0 0 0 / .58) 36%, rgb(0 0 0 / 1) 92%);
 }
 /* A reader who has asked for less has already said what they want from a
    moving background. The still is still drawn — it is a composition, not an
