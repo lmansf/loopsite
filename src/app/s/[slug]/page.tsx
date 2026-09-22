@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { CORPUS } from '@/content/accounts';
 import { ACCOUNT_IDS } from '@/content/schema';
 import { AccountSection } from '@/components/read/AccountSection';
+import { Premise } from '@/components/read/Premise';
 import { AliasRedirect } from './AliasRedirect';
 
 /**
@@ -14,7 +15,11 @@ import { AliasRedirect } from './AliasRedirect';
  * is always the single route and the back button is never polluted.
  *
  * It still renders the account, because the redirect needs JavaScript and a
- * reader without it must land on something readable.
+ * reader without it must land on something readable: the premise, the
+ * account, and the night, whose twelve slots are real anchors to the one
+ * route. It carries the `<h1>` for the same reason every other route does —
+ * a document whose first heading is an `<h2>` is a document with a hole in
+ * it, and this one is prerendered and shareable.
  */
 
 export const dynamicParams = false;
@@ -47,6 +52,7 @@ export default async function AliasPage({ params }: { params: Promise<{ slug: st
   return (
     <main id="main">
       <AliasRedirect slug={account.id} />
+      <Premise />
       <AccountSection account={account} />
     </main>
   );

@@ -1,4 +1,5 @@
 import { CORPUS } from '@/content/accounts';
+import { Premise } from '@/components/read/Premise';
 
 /**
  * The 404. The premise, and one full-salience link to the first account
@@ -12,10 +13,7 @@ export default function NotFound() {
   const first = CORPUS.accounts[0];
   return (
     <main id="main">
-      <h1 id="loop-title">
-        <span className="line">the lights went out for four seconds.</span>{' '}
-        <span className="line">twelve things were awake.</span>
-      </h1>
+      <Premise />
       {first ? (
         <a className="ask card" href={`/?s=${first.id}`} data-slot={first.id}>
           <span className="ask-title">{first.title}</span>

@@ -1,5 +1,6 @@
 import { CORPUS } from '@/content/accounts';
 import { AccountSection } from '@/components/read/AccountSection';
+import { Premise } from '@/components/read/Premise';
 import { AskBar } from '@/components/night/AskBar';
 import { LiveRegion } from '@/components/night/LiveRegion';
 import { Runtime } from '@/components/night/Runtime';
@@ -28,10 +29,7 @@ export default function Page() {
   return (
     <>
       <main id="main">
-        <h1 id="loop-title">
-          <span className="line">the lights went out for four seconds.</span>{' '}
-          <span className="line">twelve things were awake.</span>
-        </h1>
+        <Premise />
         {CORPUS.accounts.map((account) => (
           <AccountSection key={account.id} account={account} />
         ))}
