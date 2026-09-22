@@ -4,6 +4,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { HERO_BOOTSTRAP } from '@/lib/hero-bootstrap';
 import { SkipLink } from '@/components/shell/SkipLink';
 import './globals.css';
+import '@/components/ring/ring.css';
 
 /**
  * src/app/layout.tsx — the document.
