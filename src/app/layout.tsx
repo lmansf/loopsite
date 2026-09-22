@@ -42,6 +42,16 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
+/**
+ * @vercel/analytics and @vercel/speed-insights fetch /_vercel/insights/script.js,
+ * which only exists on Vercel. Rendering them off-platform produces a 404 and two
+ * console errors, and "zero console errors" is a gate we keep honestly rather than
+ * by filtering it in the test fixture. They are therefore mounted only when the
+ * Vercel environment variables are present — which is every preview and production
+ * deploy, and no local run.
+ */
+const ON_VERCEL = process.env.VERCEL === '1' || Boolean(process.env.VERCEL_ENV);
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -51,8 +61,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <SkipLink />
         <main id="main">{children}</main>
-        <Analytics />
-        <SpeedInsights />
+        {ON_VERCEL ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
       </body>
     </html>
   );

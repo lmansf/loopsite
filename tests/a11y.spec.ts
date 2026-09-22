@@ -33,9 +33,12 @@ test.describe('a11y @a11y', () => {
     expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 
-  test('an alias route is clean', async ({ page }) => {
-    await page.goto('/s/tone', { waitUntil: 'commit' });
-    await page.waitForLoadState('load');
+  test('an alias route redirects to the canonical URL and is clean', async ({ page }) => {
+    const res = await page.goto('/s/tone');
+    expect(res?.status()).toBe(200);
+    // /s/<slug> exists only for generateMetadata; it replaceStates to /?s=<slug>.
+    await page.waitForURL('**/?s=tone');
+    await page.waitForSelector('.room-shell[data-slug="tone"][data-active="true"]');
     const violations = await scan(page);
     expect(violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });

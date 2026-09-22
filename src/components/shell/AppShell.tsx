@@ -131,6 +131,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const heroStage = useRef(0);
+  const ringwayShown = useRef(false);
+
   /** A shared link populates the ring before the room layer's first paint. */
   const restoredRef = useRef(false);
   useEffect(() => {
@@ -139,6 +142,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     const decoded = decodeLoop(loopCode);
     if (!decoded) return; // a bad link never shows an error (§C.7)
     restoreNodes(decoded.nodes);
+    // The hero copy sequence narrates the VISITOR's own first taps. A loop that
+    // arrived from a shared link is not theirs, so the sequence is skipped and
+    // `someone left this here` is the caption that stands (§B, §C.7).
+    heroStage.current = 2;
+    ringwayShown.current = true;
     if (decoded.reverse) setDirection(-1);
     if (decoded.slow) setPeriod(16_000, 0);
     // Deferred by a microtask: a setState in an effect body cascades a render.
@@ -149,8 +157,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   /* ----------------------------------------------------------- the frame hooks */
 
-  const heroStage = useRef(0);
-  const ringwayShown = useRef(false);
   const activeSince = useRef(0);
   const activeRev = useRef(0);
   const countedVisit = useRef('');
@@ -233,8 +239,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   /* ----------------------------------------------------------- keyboard (§C.12) */
 
   useEffect(() => {
+    /**
+     * §C.12 handles corridor keys only while focus is inside the stage, and
+     * §C.11 moves focus to the new room's <h2> on a deliberate change. Taken
+     * literally together, arrow-key walking would stop after one press. The
+     * focus scope is therefore the stage PLUS the active room's heading — see
+     * design/06-wp0-notes.md note 2. Nothing else on the page is affected, so
+     * we still never steal a browser or screen-reader key elsewhere.
+     */
     function inStage(target: EventTarget | null): boolean {
-      return target instanceof Element ? !!target.closest('#stage') : false;
+      if (!(target instanceof Element)) return false;
+      if (target.closest('#stage')) return true;
+      return /^H[1-6]$/.test(target.tagName) && !!target.closest('.room-shell[data-active="true"]');
     }
 
     function restoreHeld(): boolean {

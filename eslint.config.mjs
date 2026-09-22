@@ -38,6 +38,12 @@ export default defineConfig([
     files: ['src/components/ring/RoomLayer.tsx'],
     rules: { 'react-hooks/static-components': 'off' },
   },
+  {
+    // Playwright's fixture API passes a callback named `use`, which the React
+    // hooks rule mistakes for React's `use()`. Tests are not React.
+    files: ['tests/**/*.ts'],
+    rules: { 'react-hooks/rules-of-hooks': 'off' },
+  },
   // The two modules that are allowed to own those primitives.
   {
     files: ['src/lib/use-motion-preference.ts', 'src/lib/storage.ts', 'src/lib/hero-bootstrap.ts'],

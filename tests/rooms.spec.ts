@@ -115,11 +115,14 @@ test('a shared #l= link round-trips onto the ring, and a broken one is silent', 
   await page.keyboard.press('Space');
   await expect(page.locator('#stage')).toHaveAttribute('data-node-count', '3');
 
-  await page.goto('/?s=origin#l=AVoAAA'); // header + checksum + one node
-  await expect(page.locator('#stage')).toHaveAttribute('data-node-count', /[0-9]+/);
+  // A real three-node payload (§C.7): version 1, checksum 0x4E, three pairs.
+  await page.goto('/?s=origin#l=AU4ggICjwFc');
+  await expect(page.locator('#stage')).toHaveAttribute('data-node-count', '3');
+  await expect(page.locator('#loop-status')).toContainText('someone left this here');
 
-  // A bad payload never shows an error and never breaks the page.
-  await page.goto('/?s=origin#l=zzzzzzzz');
+  // A bad payload never shows an error and never breaks the page. (A different
+  // search param forces a real navigation rather than a same-document hashchange.)
+  await page.goto('/?s=pulse#l=zzzzzzzz');
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(page.locator('#stage')).toHaveAttribute('data-node-count', '0');
 });
