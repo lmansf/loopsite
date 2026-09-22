@@ -1,6 +1,5 @@
 import type { Account } from '@/content/schema';
 import { CORPUS } from '@/content/accounts';
-import { LANDING_ACCOUNT } from '@/lib/boot';
 import { escapeHtml } from '@/content/compile';
 
 /**
@@ -23,7 +22,7 @@ import { escapeHtml } from '@/content/compile';
  *   changed  a solid filled mark plus a SECOND SHORT BAR above it
  *
  * Every slot is a real anchor to a real static route. `data-state` is
- * server-rendered `read` for the landing account and `unread` for the other
+ * server-rendered `read` for the route's own account and `unread` for the other
  * eleven, then corrected by the runtime; the marks are fixed-size and
  * position-reserved, so correcting them costs no layout shift.
  *
@@ -52,7 +51,13 @@ import { escapeHtml } from '@/content/compile';
 const CACHE = new Map<string, string>();
 
 function slot(account: Account, active: string): string {
-  const state = account.id === LANDING_ACCOUNT ? 'read' : 'unread';
+  // The account the reader is actually on, not always the landing one. Twelve
+  // nights are rendered and CSS shows the one matching `html[data-s]`, so a
+  // prerendered `/s/road` used to hand a scripting-off reader `the dog — read`
+  // about an account they had never opened. Marking the route's own account is
+  // true on every route with or without JavaScript, and it is what the runtime
+  // computes a frame later anyway.
+  const state = account.id === active ? 'read' : 'unread';
   const title = escapeHtml(account.title);
   const current = account.id === active ? ' aria-current="page"' : '';
   return (
