@@ -253,16 +253,23 @@ test('a seeded state is seeded once, and the session survives a reload', async (
   await seedState(page, { keys: [], visited: [] });
   await page.goto('/?s=dog');
   await expect(page.locator('#section-dog')).toBeVisible();
-  await page.locator('#section-dog details.aside:not([open]) > summary').first().click();
+  // Poll for THE PRESSED key, not for a non-empty array: the aside that is open
+  // on arrival now endows its own key at boot, so `length > 0` is already true
+  // before the pressed key's debounced write lands, and `before` would be
+  // captured too early — the reload would then look like it had added a key.
+  const pressed = page.locator('#section-dog details.aside:not([open])').first();
+  const pressedKey = await pressed.getAttribute('data-key');
+  expect(pressedKey, 'the aside carries the key it grants').toBeTruthy();
+  await pressed.locator('> summary').click();
   await expect
     .poll(
       () =>
         page.evaluate(
-          () => (JSON.parse(window.localStorage.getItem('loop:v2') ?? '{}').keys ?? []).length,
+          () => (JSON.parse(window.localStorage.getItem('loop:v2') ?? '{}').keys ?? []) as string[],
         ),
       { timeout: 5000 },
     )
-    .toBeGreaterThan(0);
+    .toContain(pressedKey as string);
   const before = await page.evaluate(
     () => JSON.parse(window.localStorage.getItem('loop:v2') ?? '{}').keys as string[],
   );
