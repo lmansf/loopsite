@@ -97,7 +97,7 @@ export const CORPUS: Corpus = {
         },
         {
           id: 'lamp-2',
-          text: "then it went out, [half a second] after the dimming. that is a long time to a filament. it came back the way it left, low first and then whole. nothing in the street changed except the street.",
+          text: "then it went out, [half a second] after the dimming. that is a long time to a filament. it came back as it left, low first and then whole. nothing in the street changed except the street.",
         },
         {
           id: 'lamp-clicks',
@@ -136,7 +136,7 @@ export const CORPUS: Corpus = {
         {
           id: 'dimmed-first',
           word: 'dimmed',
-          text: "a streetlight that is switched off stops. a streetlight that dims is being pulled at. the difference is in the wire and in the eye, and it lasted long enough for a moth further down the valley to notice.",
+          text: "a streetlight that is switched off stops. a streetlight that dims is being pulled at. the difference is in the wire and in the eye. it lasted long enough for a moth further down the valley to notice.",
         },
         {
           id: 'half-a-second',
@@ -262,7 +262,7 @@ export const CORPUS: Corpus = {
         {
           id: 'the-air-did-not-move',
           word: 'the air',
-          text: "no wind, no rain, nothing crossing the valley above the roofs. a moth is a scale for air. if weather had put the lights out, a moth would have been the first thing in the valley to know it.",
+          text: "no wind, no rain, nothing crossing the valley above the roofs. a moth is a scale for air. if weather had put the lights out, a moth would have known first. nothing about that air was weather.",
         },
       ],
     },
@@ -310,12 +310,12 @@ export const CORPUS: Corpus = {
         {
           id: 'bridge-dark',
           word: 'no light on it',
-          text: "the underside of the arch has never been lit. the river has never seen the shape of the bridge, only felt where the water goes quick and where it goes slow. dark is the normal condition of a bridge.",
+          text: "the underside of the arch has never been lit. the river has never seen the shape of the bridge. it has only felt where the water goes quick and where it goes slow. dark is the normal condition of a bridge.",
         },
         {
           id: 'the-reflection',
           word: 'carried',
-          text: "water takes a light and stretches it and sends it downstream looking like something else. the river cannot tell a lamp from a window from a held thing. it knows only that the light moved, and that it moved faster than the water.",
+          text: "water takes a light and stretches it and sends it downstream changed. the river cannot tell a lamp from a window from a held thing. it knows only that the light moved, and that it moved faster than the water.",
         },
         {
           id: 'something-in-the-water',
@@ -335,7 +335,7 @@ export const CORPUS: Corpus = {
       blocks: [
         {
           id: 'bus-1',
-          text: "the last bus was on the bridge when the valley went out. it did not go out with it. a bus carries [its own lights] and its own engine and it is on nobody's wire. the hands on the wheel did not move. the bus crossed at its usual speed.",
+          text: "the last bus was on the bridge when the valley went out. it did not go out with it. a bus carries [its own lights] and its own engine and it is on nobody's wire. the wheel did not turn. the bus crossed at its usual speed.",
         },
         {
           id: 'bus-2',
@@ -368,7 +368,7 @@ export const CORPUS: Corpus = {
         {
           id: 'light-on-the-bridge',
           word: 'a light',
-          text: "it was small and yellow and it swung. a light that swings is being carried. it did not turn toward the bus and it did not step aside, and the bridge is wide enough that it did not have to.",
+          text: "it was small and yellow and it swung. a light that swings is being carried. it did not turn toward the bus and it did not step aside. the bridge is wide enough that it did not have to.",
         },
         {
           id: 'empty-bus',
@@ -426,7 +426,7 @@ export const CORPUS: Corpus = {
         {
           id: 'four-seconds-of-tone',
           word: 'the tone',
-          text: "the tone was not on the station. the station was gone. it was the set itself, emptying, the way a held note comes out of a pipe when the air behind it stops. four seconds is a long note to a small speaker.",
+          text: "the tone was not on the station. the station was gone. it was the set itself, emptying. a held note leaves a pipe the same way when the air behind it stops. four seconds is a long note to a small speaker.",
         },
         {
           id: 'the-floorboard',
@@ -484,7 +484,7 @@ export const CORPUS: Corpus = {
         {
           id: 'clock-counts-four',
           word: 'four',
-          text: "the clock counts by the wire that feeds it. this is not a guess. it is the number of counts that did not arrive. the clock made them up afterwards in one movement, so that the face would be right and the record would not.",
+          text: "the clock counts by the wire that feeds it. this is not a guess. it is the number of counts that did not arrive. the clock made them up afterwards in one movement. the face is right. the record is not.",
         },
         {
           id: 'wound-by-hand',
@@ -547,7 +547,7 @@ export const CORPUS: Corpus = {
         {
           id: 'window-faces-the-valley',
           word: 'what it faces',
-          text: "the road goes up behind the house. the window has never seen that hill and could not. the hill it has watched all its life is the other one, across the water, and nothing was ever going to walk up that one.",
+          text: "the road goes up behind the house. the window has never seen that hill and could not. the hill it has watched all its life is the other one, across the water. nothing was ever going to walk up that one.",
         },
         {
           id: 'the-room-behind',
@@ -594,7 +594,7 @@ export const CORPUS: Corpus = {
         {
           id: 'switch-valley',
           belief: 'valley',
-          text: "everything the switch feeds is below it. down is where the wire goes. down is the only direction the switch has. asked where the dark went, it would say down the hill. house after house, in the order the wire is strung.",
+          text: "everything the switch feeds is below it. down is where the wire goes. down is the only direction the switch has. asked where the dark went, it would say down the hill. it would say house after house, in the order the wire is strung.",
         },
         {
           id: 'switch-hill',
@@ -639,7 +639,7 @@ export const CORPUS: Corpus = {
         },
         {
           id: 'road-2',
-          text: "nothing came back down. the road had weight on it going up and then it had none. it stayed like that until the morning. whatever went up [did not come back] the way it went. the road would have felt it if it had.",
+          text: "nothing came back down. the road had weight on it going up and then it had none. it stayed like that until the morning. whatever went up [did not come back] on this road, and the road would have felt it if it had.",
         },
         {
           id: 'road-3',
@@ -688,12 +688,12 @@ export const CORPUS: Corpus = {
         {
           id: 'road-ends-at-the-box',
           word: 'the top',
-          text: "the road was made for the cabinet and for nothing else. it has one destination and the destination has a latch. it has carried a van up twice a year for as long as it has been a road, and nothing else.",
+          text: "the road was made for the cabinet and for nothing else. it has one destination and the destination has a latch. it has carried a van up twice a year for as long as it has been a road. it has carried nothing else.",
         },
         {
           id: 'road-stayed-dry',
           word: 'dry',
-          text: "it had not rained for days. anything coming off that road onto a step came off it dry. the wet came from somewhere else, and at the bottom of that field there is only one somewhere else it could be.",
+          text: "it had not rained for days. anything coming off that road onto a step came off it dry. the wet came from somewhere else. at the bottom of that field there is only one somewhere else it could be.",
         },
       ],
     },
@@ -747,7 +747,7 @@ export const CORPUS: Corpus = {
         {
           id: 'a-hand-on-a-handle',
           word: 'a handle',
-          text: "the handle is stiff and it is meant to be. it takes a thumb and a lean. whoever it was had to want it, and had to come uphill in the cold and the dark to go on wanting it.",
+          text: "the handle is stiff and it is meant to be. it takes a thumb and a lean. whoever it was had to want it. whoever it was had to come uphill in the cold and the dark and go on wanting it.",
         },
         {
           id: 'nobody-asked',
