@@ -185,9 +185,12 @@ nav.ringway[data-complete='true'] a[data-visited='true'] .notch {
    under the caption, so the row compacts to 24 px-wide, 44 px-tall targets. */
 @media (max-height: 700px) and (max-width: 639px) {
   /* two rows of six 44 px targets still fit: the rows just sit closer */
+  nav.ringway { --tap-min: 44px; }
   nav.ringway .notches { row-gap: 4px; }
   nav.ringway .hub { top: -1.6em; }
 }
+/* the notches win over the arc if anything ever crowds them */
+nav.ringway { z-index: calc(var(--z-nav) + 1); }
 
 /* ------------------------------------------------ desktop: the vertical dial */
 @media (pointer: fine) and (min-width: 721px), (orientation: landscape) and (max-height: 500px) {
@@ -265,7 +268,9 @@ a.next-arc {
   z-index: var(--z-nav);
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 96px + var(--sp-2));
+  /* directly beneath the caption (28 px + two lines), never on the Ringway */
+  top: calc(var(--ring-cy) + var(--ring-r) + 84px);
+  bottom: auto;
   width: 208px;
   height: 64px;
   min-height: 48px;
@@ -281,7 +286,7 @@ a.next-arc {
 }
 @media (max-height: 700px) and (max-width: 639px) {
   /* the 320×568 class: a 44 px arc keeps clear of the caption line */
-  a.next-arc { bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--tap-min) + var(--sp-1)); height: 44px; min-height: 44px; width: 168px; }
+  a.next-arc { height: 44px; min-height: 44px; width: 168px; }
 }
 a.next-arc svg { width: 100%; height: 100%; overflow: visible; }
 a.next-arc .track {
@@ -353,19 +358,25 @@ html:not([data-motion='reduce']) a.next-arc[data-escalated='true'] .traveller {
 footer.loop-footer {
   position: fixed;
   z-index: var(--z-nav);
+  /* every fixed overlay is transparent to input; its buttons opt back in */
+  pointer-events: none;
   left: auto;
   right: var(--gutter);
-  top: var(--sp-3);
+  top: 4px;
   bottom: auto;
+  /* two by two, pinned to the very top: the block ends above the ring's top
+     edge on every phone class (ring top >= 98 px), so no control ever sits on
+     the band once `keep this` / `send your loop` appear */
   display: grid;
-  grid-template-columns: auto;
+  grid-template-columns: auto auto;
   justify-items: end;
-  column-gap: var(--sp-1);
-  row-gap: var(--sp-1);
+  column-gap: var(--sp-2);
+  row-gap: 4px;
   align-items: center;
 }
 footer.loop-footer button {
   position: relative;
+  pointer-events: auto;
   min-height: 44px;
   display: inline-flex;
   align-items: center;

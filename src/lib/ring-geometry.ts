@@ -31,14 +31,29 @@ export function radiusOfLevel(level: number, R: number): number {
   return R * (1 + LEVEL_STEP * (level - LEVEL_ON_RING));
 }
 
+/**
+ * Ring diameter (as a share of the short axis) and centre height (as a share
+ * of the viewport height). Fine pointers: 78 % centred. Touch screens lift the
+ * ring so the caption, the Next Arc and two rows of 44–48 px notches stack
+ * beneath it without overlap; the two shortest phone classes also give up a
+ * little diameter for that room. Mirrored byte-for-byte in hero-bootstrap.ts.
+ */
+export function ringScale(h: number, coarse: boolean): { d: number; cy: number } {
+  if (!coarse) return { d: 0.78, cy: 0.5 };
+  if (h < 600) return { d: 0.7, cy: 0.37 };
+  if (h < 700) return { d: 0.74, cy: 0.4 };
+  return { d: 0.78, cy: 0.42 };
+}
+
 export function computeGeometry(w: number, h: number, coarse: boolean): RingGeometry {
   const short = Math.min(w, h);
-  const D = 0.78 * short;
+  const scale = ringScale(h, coarse);
+  const D = scale.d * short;
   const R = D / 2;
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
   return {
     cx: w / 2,
-    cy: coarse ? h * 0.455 : h * 0.5,
+    cy: scale.cy * h,
     R,
     band: Math.max(28, 0.12 * R),
     dpr,

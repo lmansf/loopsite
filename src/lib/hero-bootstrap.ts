@@ -40,7 +40,7 @@ red=ov==='reduce'||(ov!=='auto'&&red);
 A('data-motion',red?'reduce':'auto');
 var w=innerWidth,ht=innerHeight,co=false;
 try{co=matchMedia('(pointer: coarse)').matches}catch(e){}
-var R=0.39*M.min(w,ht),cx=w/2,cy=co?ht*0.455:ht*0.5;
+var sc=co?(ht<600?[0.35,0.37]:ht<700?[0.37,0.4]:[0.39,0.42]):[0.39,0.5],R=sc[0]*M.min(w,ht),cx=w/2,cy=sc[1]*ht;
 P('--ring-r',R+'px');P('--ring-cx',cx+'px');P('--ring-cy',cy+'px');
 var L=window.__loop={interacted:false,tap:false,t0:performance.now(),taps:[],q:[],off:[]};
 var px=0.5,py=0.5,f=0;

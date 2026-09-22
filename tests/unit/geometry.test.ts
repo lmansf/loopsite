@@ -27,11 +27,26 @@ test('the ring is 78% of the short axis, on every viewport', () => {
   assert.equal(Math.round(computeGeometry(1440, 900, false).R * 2), 702);
 });
 
-test('cy is biased upward on coarse pointers so the ring clears the Ringway', () => {
+test('touch screens lift the ring so the caption, the arc and two notch rows fit beneath it', () => {
   const fine = computeGeometry(412, 823, false);
   const coarse = computeGeometry(412, 823, true);
   assert.equal(fine.cy, 823 * 0.5);
-  assert.equal(coarse.cy, 823 * 0.455);
+  assert.equal(coarse.cy, 823 * 0.42);
+  assert.equal(coarse.R * 2, 0.78 * 412);
+  // the two shortest phone classes give up a little diameter for that room
+  const mid = computeGeometry(360, 640, true);
+  assert.equal(mid.cy, 640 * 0.4);
+  assert.ok(Math.abs(mid.R * 2 - 0.74 * 360) < 1e-9);
+  const small = computeGeometry(320, 568, true);
+  assert.equal(small.cy, 568 * 0.37);
+  assert.ok(Math.abs(small.R * 2 - 0.7 * 320) < 1e-9);
+  // and there is room: caption (28 + 42) + arc (14 + 44) above the top notch row
+  for (const [w, h] of [[320, 568], [360, 640], [412, 915]] as const) {
+    const g = computeGeometry(w, h, true);
+    const arcBottom = g.cy + g.R + 84 + 44;
+    const ringwayTop = h - 16 - (h < 700 ? 44 * 2 + 4 : 48 * 2 + 8) - 8;
+    assert.ok(arcBottom <= ringwayTop, `${w}x${h}: arc ${arcBottom} vs ringway ${ringwayTop}`);
+  }
 });
 
 test('the radius-level mapping keeps level 8 exactly on the ring', () => {
@@ -46,6 +61,7 @@ test('the radius-level mapping keeps level 8 exactly on the ring', () => {
 
 test('the hit band is at least 28 px, so the total band clears 56 px', () => {
   assert.ok(computeGeometry(320, 568, true).band >= 28);
+  assert.ok(computeGeometry(320, 568, true).R * 2 >= 200);
   assert.equal(computeGeometry(1440, 900, false).band, 0.12 * (0.78 * 900) / 2);
 });
 
