@@ -1,0 +1,6 @@
+/* Room-scoped styles. Tokens only — never a literal colour (§E). */
+.root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

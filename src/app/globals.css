@@ -1,0 +1,383 @@
+/* ============================================================
+   LOOP — globals.css   (Tailwind v4 + tokens + critical layer)
+   Source of truth: design/05-build-spec.md §E. Do not add a
+   colour, duration or amplitude anywhere else in the codebase.
+   ============================================================ */
+@import "tailwindcss";
+@import "../styles/motion.css";
+
+@theme {
+  /* ---- fonts: system stack only. No webfont, ever. ---- */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+                  "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* ---- raw palette ---- */
+  --color-fil-100:#E6FFF8; --color-fil-300:#9CF6E0; --color-fil-400:#7CF3D8;
+  --color-fil-500:#4FE9C4; --color-fil-600:#22C9A3; --color-fil-700:#0A6E59;
+  --color-fil-900:#04332A;
+  --color-ion-300:#C3BAFF; --color-ion-400:#9B8CFF; --color-ion-500:#7B68F5;
+  --color-ion-600:#5B48D9; --color-ion-700:#4B39C9; --color-ion-900:#231A63;
+  --color-emb-300:#FFC79A; --color-emb-400:#FFA65C; --color-emb-500:#F5842A;
+  --color-emb-700:#8A4406; --color-emb-900:#3D1E02;
+  --color-n-0:#06070A;  --color-n-50:#0D1016; --color-n-100:#161B26;
+  --color-n-200:#1E2431; --color-n-300:#232A38; --color-n-400:#2E374A;
+  --color-n-500:#4A5566; --color-n-600:#7B8698; --color-n-700:#A6B0C3;
+  --color-n-800:#CDD4E0; --color-n-900:#ECEFF6; --color-n-1000:#FFFFFF;
+  --color-w-50:#FFFFFF; --color-w-100:#FCFBF8; --color-w-200:#F7F5F0;
+  --color-w-300:#EDEAE2; --color-w-400:#DCD8CF; --color-w-500:#B8B3A8;
+
+  /* ---- semantic colour (DARK is the default and the designed case) ---- */
+  --color-loop-canvas:         #06070A;   /* 17.50:1 vs text */
+  --color-loop-surface:        #0D1016;
+  --color-loop-raised:         #161B26;
+  --color-loop-border:         #232A38;
+  --color-loop-border-strong:  #2E374A;
+  --color-loop-text:           #ECEFF6;   /* 17.50:1 */
+  --color-loop-text-secondary: #A6B0C3;   /*  9.23:1 */
+  --color-loop-text-muted:     #7B8698;   /*  5.47:1 */
+  --color-loop-accent:         #4FE9C4;   /* 13.22:1 — Filament */
+  --color-loop-accent-hi:      #7CF3D8;   /* 15.03:1 */
+  --color-loop-accent-dim:     #22C9A3;
+  --color-loop-accent-2:       #9B8CFF;   /*  7.28:1 — Ion: back/history/reverse */
+  --color-loop-accent-3:       #FFA65C;   /* 10.42:1 — Ember: discovery/heat */
+  --color-loop-on-accent:      #06070A;   /* 13.22:1 on Filament */
+  --color-loop-focus:          #7CF3D8;   /* 15.03:1 */
+
+  /* ---- type scale (fluid 360 -> 1440) ---- */
+  --text-display: clamp(2.75rem, 1.30rem + 6.44vw, 7rem);
+  --text-h1:      clamp(2rem, 1.32rem + 3.02vw, 4rem);
+  --text-h2:      clamp(1.5rem, 1.17rem + 1.48vw, 2.5rem);
+  --text-h3:      clamp(1.25rem, 1.12rem + 0.56vw, 1.625rem);
+  --text-lead:    clamp(1.125rem, 1.02rem + 0.46vw, 1.4375rem);
+  --text-body:    clamp(1rem, 0.96rem + 0.19vw, 1.125rem);
+  --text-sm:      clamp(0.875rem, 0.86rem + 0.09vw, 0.9375rem);
+  --text-xs:      0.75rem;
+
+  /* ---- easings ---- */
+  --ease-loop:     cubic-bezier(.65,0,.35,1);
+  --ease-drift:    cubic-bezier(.37,0,.63,1);
+  --ease-enter:    cubic-bezier(.16,1,.3,1);
+  --ease-exit:     cubic-bezier(.7,0,.84,0);
+  --ease-snap:     cubic-bezier(.2,.9,.1,1);
+  --ease-orbit:    linear;
+  --ease-elastic:  cubic-bezier(.34,1.56,.64,1);
+  --ease-spring-soft:linear(0,.0732,.2212,.3971,.5565,.6918,.8021,.8803,.935,.9722,.9938,1.006,1.0113,1.0127,1.0119,1.01,1.0079,1.0057,1.004,1.0026,1.0016,1.0009,1);
+  --ease-spring-snap:linear(0,.0779,.2325,.4081,.573,.7119,.8201,.8987,.9545,.9875,1.0063,1.0153,1.0181,1.0173,1.0148,1.0115,1.0084,1.0058,1.0037,1.0021,1.001,1.0004,1);
+  --ease-spring-magnetic:linear(0,.0686,.2132,.3894,.5541,.6968,.8142,.8984,.9568,.9953,1.0163,1.0263,1.0286,1.0266,1.0223,1.0174,1.0127,1.0085,1.0053,1.0029,1.0012,1.0001,1);
+  --ease-spring-bounce:linear(0,.1584,.4661,.7788,.9984,1.1151,1.1462,1.1227,1.0776,1.032,1,.9828,.9786,.9821,.9889,.9954,1,1.0025,1.0031,1.0026,1.0016,1.0007,1);
+
+  --radius-sm:6px; --radius-md:12px; --radius-lg:20px; --radius-xl:32px;
+}
+
+/* ---------- aliases + non-namespaced tokens ---------- */
+:root {
+  color-scheme: dark;
+  --c-canvas:var(--color-loop-canvas);            --c-surface:var(--color-loop-surface);
+  --c-surface-raised:var(--color-loop-raised);
+  --c-surface-overlay:color-mix(in oklab, var(--color-loop-surface) 82%, transparent);
+  --c-border:var(--color-loop-border);            --c-border-strong:var(--color-loop-border-strong);
+  --c-text:var(--color-loop-text);                --c-text-secondary:var(--color-loop-text-secondary);
+  --c-text-muted:var(--color-loop-text-muted);    --c-text-inverse:var(--color-loop-canvas);
+  --c-accent:var(--color-loop-accent);            --c-accent-hi:var(--color-loop-accent-hi);
+  --c-accent-dim:var(--color-loop-accent-dim);    --c-accent-2:var(--color-loop-accent-2);
+  --c-accent-3:var(--color-loop-accent-3);        --c-on-accent:var(--color-loop-on-accent);
+  --c-focus:var(--color-loop-focus);
+  --c-trail-0:color-mix(in oklab, var(--c-accent) 0%,  transparent);
+  --c-trail-1:color-mix(in oklab, var(--c-accent) 35%, transparent);
+  --c-trail-2:var(--c-accent-hi);
+
+  --shadow-1:0 1px 2px rgb(0 0 0 / .5);
+  --shadow-2:0 8px 24px -8px rgb(0 0 0 / .65);
+  --shadow-3:0 24px 64px -24px rgb(0 0 0 / .8);
+  --glow-1:0 0 8px -1px color-mix(in oklab, var(--c-accent) 55%, transparent);
+  --glow-2:0 0 28px -4px color-mix(in oklab, var(--c-accent) 32%, transparent);
+  --glow-3:0 0 72px -12px color-mix(in oklab, var(--c-accent-2) 18%, transparent);
+  --glow-full:0 0 0 1px color-mix(in oklab, var(--c-accent) 90%, transparent),
+              var(--glow-1), var(--glow-2), var(--glow-3);
+  --blend-traveller:plus-lighter;
+
+  /* line-height / tracking / measure */
+  --lh-display:0.94; --lh-h1:1.02; --lh-h2:1.12; --lh-h3:1.25; --lh-body:1.6; --lh-sm:1.45;
+  --ls-display:-0.035em; --ls-h1:-0.025em; --ls-h2:-0.015em;
+  --ls-body:0em; --ls-sm:0.005em; --ls-label:0.14em;
+  --measure:68ch; --measure-lead:54ch; --measure-display:18ch;
+
+  /* space, layout, z */
+  --sp-1:.25rem; --sp-2:.5rem; --sp-3:.75rem; --sp-4:1rem; --sp-5:1.5rem;
+  --sp-6:2rem; --sp-7:3rem; --sp-8:4rem; --sp-9:6rem; --sp-10:8rem;
+  --gutter:max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
+  --gutter-b:max(1rem, env(safe-area-inset-bottom));
+  --content-max:76rem; --tap-min:48px;
+  --z-bg:0; --z-room:10; --z-ring:20; --z-caption:30; --z-nav:80; --z-overlay:90;
+
+  /* durations */
+  --dur-1:80ms; --dur-2:120ms; --dur-3:180ms; --dur-4:240ms;
+  --dur-5:360ms; --dur-6:520ms; --dur-7:720ms; --dur-8:1200ms;
+
+  /* THE CLOCK: one revolution = 4000ms. Everything else is a multiple. */
+  --loop-half:4000ms;     /* one revolution — the master */
+  --loop-cycle:8000ms;    /* 2 revolutions */
+  --loop-double:16000ms;  /* 4 revolutions */
+  --loop-slow:24000ms;    /* 6 revolutions — the Return */
+
+  /* amplitudes — components read these, never hardcode */
+  --amp-drift:24px; --amp-parallax:40px; --amp-lift:4px; --amp-tilt:7deg;
+  --amp-magnet:14px; --amp-breathe:0.26; --amp-flash:0.06;
+  --amp-scale-press:0.97; --amp-scale-hover:1.03;
+  --trail-len:18px; --trail-tau:380ms;
+  --phase-n:12; --follow-lerp:0.12;
+
+  /* ring geometry mirrors (written by JS once per resize; CSS reads them) */
+  --ring-r:0px; --ring-cx:50%; --ring-cy:50%;
+}
+
+@property --loop-t { syntax:"<number>"; inherits:true; initial-value:0; }
+@property --px     { syntax:"<number>"; inherits:true; initial-value:0.5; }
+@property --py     { syntax:"<number>"; inherits:true; initial-value:0.5; }
+:root { animation: loop-clock var(--loop-half) linear infinite; }
+@keyframes loop-clock { from{--loop-t:0} to{--loop-t:1} }
+.loop-set > * { animation-delay: calc(-1 * var(--loop-half) * var(--i) / var(--phase-n)); }
+
+/* ---------- light theme: a real design, not an inversion ---------- */
+[data-theme="light"], :root:not([data-theme="dark"]):where(.light-pref) {
+  color-scheme: light;
+  --color-loop-canvas:#F7F5F0; --color-loop-surface:#FFFFFF; --color-loop-raised:#FFFFFF;
+  --color-loop-border:#DCD8CF; --color-loop-border-strong:#B8B3A8;
+  --color-loop-text:#0B0D12; --color-loop-text-secondary:#3E4655;
+  --color-loop-text-muted:#5C6575;
+  --color-loop-accent:#0A6E59; --color-loop-accent-hi:#0A6E59; --color-loop-accent-dim:#22C9A3;
+  --color-loop-accent-2:#4B39C9; --color-loop-accent-3:#8A4406;
+  --color-loop-on-accent:#FFFFFF; --color-loop-focus:#4B39C9;
+  --glow-1:0 0 0 1px color-mix(in oklab, var(--c-accent) 70%, transparent);
+  --glow-2:0 6px 18px -8px color-mix(in oklab, var(--c-accent) 45%, transparent);
+  --glow-3:0 0 0 0 transparent; --glow-full:var(--glow-1), var(--glow-2);
+  --blend-traveller:multiply;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --color-loop-canvas:#F7F5F0; --color-loop-surface:#FFFFFF; --color-loop-raised:#FFFFFF;
+    --color-loop-border:#DCD8CF; --color-loop-border-strong:#B8B3A8;
+    --color-loop-text:#0B0D12; --color-loop-text-secondary:#3E4655;
+    --color-loop-text-muted:#5C6575;
+    --color-loop-accent:#0A6E59; --color-loop-accent-hi:#0A6E59;
+    --color-loop-accent-2:#4B39C9; --color-loop-accent-3:#8A4406;
+    --color-loop-on-accent:#FFFFFF; --color-loop-focus:#4B39C9;
+    --glow-1:0 0 0 1px color-mix(in oklab, var(--c-accent) 70%, transparent);
+    --glow-2:0 6px 18px -8px color-mix(in oklab, var(--c-accent) 45%, transparent);
+    --glow-3:0 0 0 0 transparent; --glow-full:var(--glow-1), var(--glow-2);
+    --blend-traveller:multiply;
+  }
+}
+
+/* ---------- critical base layer ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+body {
+  min-height:100svh; min-height:100dvh;
+  font-family:var(--font-sans); font-size:var(--text-body); line-height:var(--lh-body);
+  letter-spacing:var(--ls-body); color:var(--c-text); background:var(--c-canvas);
+  -webkit-font-smoothing:antialiased; overflow-x:clip;
+}
+img, svg, video, canvas { display:block; max-width:100%; }
+button, input, select, textarea { font:inherit; color:inherit; }
+button { background:none; border:0; cursor:pointer; touch-action:manipulation; }
+a { color:inherit; text-decoration:none; }
+h1,h2,h3 { font-family:var(--font-display); font-weight:600; text-wrap:balance; }
+p { text-wrap:pretty; }
+:focus-visible { outline:2px solid var(--c-focus); outline-offset:3px; border-radius:var(--radius-sm); }
+:focus:not(:focus-visible) { outline:none; }
+::selection { background:var(--c-accent); color:var(--c-on-accent); }
+
+/* Hero caption: absolutely positioned inside the stage, so opacity changes cost 0 CLS. */
+#loop-title { position:absolute; left:50%; transform:translateX(-50%);
+  top:calc(var(--ring-cy) + var(--ring-r) + 28px);
+  font-size:var(--text-lead); line-height:1.3; letter-spacing:var(--ls-h2);
+  color:var(--c-text); text-align:center; max-width:var(--measure-display);
+  opacity:0; animation:caption-in var(--dur-6) var(--ease-enter) 1800ms both; }
+#loop-title .echo { display:block; color:var(--c-text-muted); font-size:var(--text-sm); }
+@keyframes caption-in { from{opacity:0} to{opacity:1} }
+[data-stage-state="engaged"] #loop-title { opacity:0; transition:opacity var(--dur-5) var(--ease-exit); }
+#loop-status { position:absolute; left:50%; transform:translateX(-50%);
+  top:calc(var(--ring-cy) + var(--ring-r) + 28px); min-height:2.2em;
+  font-size:var(--text-lead); color:var(--c-text); text-align:center; }
+
+/* utilities used across the site */
+.u-glow { box-shadow:var(--glow-full); }
+.u-label { font-size:var(--text-xs); letter-spacing:var(--ls-label); text-transform:lowercase;
+  font-weight:500; color:var(--c-text-muted); }
+.u-num { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+.u-sr { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.skip-link { position:absolute; left:-9999px; }
+.skip-link:focus-visible { left:var(--sp-4); top:var(--sp-4); z-index:var(--z-overlay);
+  background:var(--c-surface-raised); color:var(--c-text); padding:var(--sp-3) var(--sp-4);
+  border-radius:var(--radius-md); }
+@media (hover:hover) and (pointer:fine) {
+  .u-hover-lift:hover { transform:translateY(calc(-1 * var(--amp-lift)));
+    transition:transform var(--dur-2) var(--ease-snap); }
+}
+
+/* ---------- reduced motion: the calm variant, never nothing ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1:60ms; --dur-2:100ms; --dur-3:120ms; --dur-4:150ms;
+    --dur-5:160ms; --dur-6:180ms; --dur-7:200ms; --dur-8:220ms;
+    --amp-drift:0px; --amp-parallax:0px; --amp-lift:0px; --amp-tilt:0deg;
+    --amp-magnet:0px; --amp-breathe:0.12; --amp-flash:0;
+    --amp-scale-press:1; --amp-scale-hover:1;
+    --trail-len:0px; --follow-lerp:1;
+    --ease-spring-soft:var(--ease-snap);  --ease-spring-snap:var(--ease-snap);
+    --ease-spring-magnetic:var(--ease-snap); --ease-spring-bounce:var(--ease-snap);
+    --ease-elastic:var(--ease-snap); scroll-behavior:auto;
+  }
+  #loop-title { animation-duration:var(--dur-5); animation-delay:0ms; }
+  .parallax, .tilt { transform:none !important; }
+  *, *::before, *::after { animation-duration:var(--dur-5); animation-iteration-count:1;
+    transition-duration:var(--dur-3); }
+  /* the ambient breathe survives — a still page is a dead page */
+  .is-ambient, .is-ambient * { animation-duration:12s !important;
+    animation-iteration-count:infinite !important; }
+}
+
+/* ---------- reduced motion, in-page toggle: the same overrides, verbatim ---------- */
+:root[data-motion="reduce"] {
+  --dur-1:60ms; --dur-2:100ms; --dur-3:120ms; --dur-4:150ms;
+  --dur-5:160ms; --dur-6:180ms; --dur-7:200ms; --dur-8:220ms;
+  --amp-drift:0px; --amp-parallax:0px; --amp-lift:0px; --amp-tilt:0deg;
+  --amp-magnet:0px; --amp-breathe:0.12; --amp-flash:0;
+  --amp-scale-press:1; --amp-scale-hover:1;
+  --trail-len:0px; --follow-lerp:1;
+  --ease-spring-soft:var(--ease-snap);  --ease-spring-snap:var(--ease-snap);
+  --ease-spring-magnetic:var(--ease-snap); --ease-spring-bounce:var(--ease-snap);
+  --ease-elastic:var(--ease-snap); scroll-behavior:auto;
+}
+:root[data-motion="reduce"] #loop-title { animation-duration:var(--dur-5); animation-delay:0ms; }
+:root[data-motion="reduce"] .parallax, :root[data-motion="reduce"] .tilt { transform:none !important; }
+:root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after {
+  animation-duration:var(--dur-5); animation-iteration-count:1; transition-duration:var(--dur-3); }
+:root[data-motion="reduce"] .is-ambient, :root[data-motion="reduce"] .is-ambient * {
+  animation-duration:12s !important; animation-iteration-count:infinite !important; }
+
+/* the in-page toggle can also force full motion back on, overriding the media query */
+:root[data-motion="auto"] { scroll-behavior:auto; }
+
+@media (prefers-reduced-transparency: reduce) {
+  :root { --c-surface-overlay: var(--c-surface); } .glass { backdrop-filter:none; }
+}
+@media (prefers-contrast: more) {
+  :root { --color-loop-text-muted:#A6B0C3; --color-loop-border:#2E374A; }
+}
+@media (forced-colors: active) {
+  :root { --c-accent:Highlight; --c-text:CanvasText; --c-canvas:Canvas; }
+  .u-glow { forced-color-adjust:none; }
+}
+
+/* ============================================================
+   App shell layout. Structural only — WP1/WP3 own the polish.
+   ============================================================ */
+#main { position:relative; }
+
+#stage {
+  position:relative;
+  width:100%;
+  height:100dvh;
+  min-height:100svh;
+  display:block;
+  overflow:hidden;
+  touch-action:none;
+  outline-offset:-3px;
+}
+#stage canvas { position:absolute; inset:0; width:100%; height:100%; }
+#loop-bg   { z-index:var(--z-bg); }
+#loop-room { z-index:var(--z-room); }
+#loop-ring { z-index:var(--z-ring); }
+#loop-title, #loop-status { z-index:var(--z-caption); pointer-events:none; }
+
+/* Without JS the corridor is a readable, scrollable twelve-section document.
+   With JS (html[data-loop-js], set synchronously before first paint) the stage
+   takes over and only the active room's shell is shown. No reflow, CLS 0. */
+.corridor { position:relative; }
+.room-shell { min-height:100dvh; padding:var(--sp-7) var(--gutter) var(--sp-9); }
+.room-shell h2 { font-size:var(--text-h2); letter-spacing:var(--ls-h2); }
+.room-shell .hook { color:var(--c-text-secondary); margin-top:var(--sp-2); }
+.room-shell .next-link { display:inline-block; margin-top:var(--sp-5);
+  color:var(--c-accent); border-bottom:1px solid var(--c-border-strong); padding-bottom:2px; }
+
+html[data-loop-js] #main { height:100dvh; overflow:hidden; }
+html[data-loop-js] .corridor {
+  position:absolute; inset:0; z-index:var(--z-room); pointer-events:none;
+}
+html[data-loop-js] .room-shell {
+  position:absolute; inset:0; min-height:0; padding:var(--sp-6) var(--gutter);
+  opacity:0; visibility:hidden; pointer-events:none;
+}
+html[data-loop-js] .room-shell[data-active="true"] {
+  opacity:1; visibility:visible; pointer-events:auto;
+  transition:opacity var(--dur-6) var(--ease-enter);
+}
+html[data-loop-js] .room-shell[data-active="true"] .next-link { pointer-events:auto; }
+/* In JS mode the shell text sits quietly at the top-left; the canvas carries the room. */
+html[data-loop-js] .room-shell h2 { font-size:var(--text-h3); color:var(--c-text); }
+html[data-loop-js] .room-shell .hook { font-size:var(--text-sm); }
+
+/* ---------- Ringway ---------- */
+.ringway { position:fixed; z-index:var(--z-nav); display:flex; align-items:center;
+  justify-content:center; gap:var(--sp-2); }
+@media (pointer:fine) {
+  .ringway { right:24px; top:50%; transform:translateY(-50%); flex-direction:column; }
+}
+@media (pointer:coarse), (max-width:720px) {
+  .ringway { left:0; right:0; bottom:max(16px, env(safe-area-inset-bottom));
+    flex-direction:row; flex-wrap:nowrap; transform:none; top:auto; }
+}
+.ringway a {
+  display:grid; place-items:center;
+  width:var(--tap-min); height:var(--tap-min); min-width:44px; min-height:44px;
+  border-radius:999px;
+}
+@media (pointer:fine) { .ringway a { width:32px; height:32px; min-width:32px; min-height:32px; } }
+.ringway .notch {
+  width:10px; height:10px; border-radius:999px;
+  border:1px solid var(--c-border-strong); background:transparent;
+}
+.ringway a[data-visited="true"] .notch {
+  background:var(--c-accent); border-color:var(--c-accent);
+  box-shadow:inset 0 0 0 1px var(--c-canvas);
+}
+.ringway a[aria-current="page"] .notch {
+  outline:1px solid var(--c-accent-hi); outline-offset:3px;
+}
+.ringway a[aria-current="page"]::after {
+  content:""; position:absolute; width:3px; height:3px; border-radius:999px;
+  background:var(--c-accent-hi);
+}
+.ringway a { position:relative; }
+.ringway .hub { font-size:var(--text-xs); color:var(--c-accent-3);
+  font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+
+/* ---------- Next Arc ---------- */
+.next-arc { position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(max(16px, env(safe-area-inset-bottom)) + 56px);
+  z-index:var(--z-nav); min-height:48px; display:grid; place-items:center;
+  padding:0 var(--sp-4); color:var(--c-text-secondary); font-size:var(--text-sm); }
+@media (pointer:fine) { .next-arc { bottom:24px; } }
+.next-arc:hover, .next-arc:focus-visible { color:var(--c-accent); }
+
+/* ---------- footer controls ---------- */
+.loop-footer { position:fixed; left:var(--gutter); bottom:var(--gutter-b);
+  z-index:var(--z-nav); display:flex; gap:var(--sp-4); align-items:center; }
+@media (pointer:coarse), (max-width:720px) { .loop-footer { bottom:calc(var(--gutter-b) + 56px); } }
+.loop-footer button, .loop-footer a {
+  min-height:44px; display:inline-flex; align-items:center; padding:0 var(--sp-2);
+  font-size:var(--text-xs); letter-spacing:var(--ls-label); color:var(--c-text-muted);
+  border-radius:var(--radius-sm);
+}
+.loop-footer button[aria-pressed="true"] { color:var(--c-accent); }
+.loop-footer button:hover, .loop-footer a:hover { color:var(--c-text); }
+
+html:not([data-loop-js]) .ringway, html:not([data-loop-js]) .next-arc { position:static; transform:none; }

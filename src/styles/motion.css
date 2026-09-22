@@ -1,0 +1,38 @@
+/* ============================================================
+   LOOP — src/styles/motion.css
+   Shared @keyframes and the reduced-motion layer for them.
+   Imported by globals.css. Tokens only; no colours here.
+   ============================================================ */
+
+@keyframes loop-breathe {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 0.85; }
+}
+
+@keyframes loop-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes loop-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* A notch locking in: 360ms fill (--dur-5, --ease-loop) plus one Ember frame. */
+@keyframes loop-lock-in {
+  0%   { transform: scale(1);    }
+  55%  { transform: scale(1.35); }
+  100% { transform: scale(1);    }
+}
+
+/* The Next Arc traveller walking its arc once, on idle escalation. */
+@keyframes loop-travel {
+  from { offset-distance: 0%;   }
+  to   { offset-distance: 100%; }
+}
+
+/* The ambient breathe survives reduced motion — a still page is a dead page. */
+.is-ambient {
+  animation: loop-breathe var(--loop-slow) var(--ease-drift) infinite;
+}
