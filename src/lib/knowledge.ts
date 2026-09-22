@@ -76,6 +76,52 @@ export const CONSUMERS: ReadonlyMap<KeyId, readonly AccountId[]> = (() => {
 
 export const CONTRADICTIONS: readonly { id: string; needs: readonly KeyId[] }[] = GRAPH.contradictions;
 
+/**
+ * Which account carries a contradiction's line — **the account it names
+ * first**, which is the account that emits `needs[0]`.
+ *
+ * The line is prose and prose does not reach this module (§E item 3), so the
+ * *block* is server-rendered by `src/content/compile.ts` as an ordinary
+ * `.blk[data-needs="contra:<id>"]` at the foot of that account. The engine
+ * cannot see it — `graph.ts` is generated from the corpus and the corpus does
+ * not contain it — so without this map three of the five contradictions
+ * (`count`, `hill` and `both`) would pay out as a silent numeral and mark no
+ * slot at all: the line would be sitting in an account the reader was never
+ * pointed at. The derivation is `compile.ts`'s `CONTRADICTION_HOME`, verbatim,
+ * and `tests/unit/knowledge.test.ts` holds the two to each other.
+ */
+export const CONTRADICTION_HOME: ReadonlyMap<string, AccountId> = new Map(
+  CONTRADICTIONS.flatMap((c) => {
+    const home = EMITTERS.get(c.needs[0] as KeyId);
+    return home ? [[c.id, home] as const] : [];
+  }),
+);
+
+/**
+ * account id -> the keys of blocks that exist on its page but not in the
+ * graph. Today that is exactly its contradiction lines. They behave like
+ * every other locked block: they materialise at entry, they mark the slot,
+ * and entering clears the mark.
+ */
+const OFF_GRAPH_NEEDS: ReadonlyMap<AccountId, readonly KeyId[]> = (() => {
+  const out = new Map<AccountId, KeyId[]>();
+  for (const [id, home] of CONTRADICTION_HOME) {
+    const key = contraKey(id);
+    const list = out.get(home);
+    if (list) list.push(key);
+    else out.set(home, [key]);
+  }
+  return out;
+})();
+
+/**
+ * `contra:<id>` (§C.5). A function declaration, so it is hoisted above the
+ * map that needs it and `SYNTHETIC.contra` below is the same one word.
+ */
+function contraKey(id: string): KeyId {
+  return `contra:${id}`;
+}
+
 const ACCOUNT_SET = new Set<string>(ACCOUNT_IDS);
 
 /* ----------------------------------------------------------- aside masks */
@@ -144,7 +190,7 @@ function base64UrlToBytes(code: string): Uint8Array | null {
  */
 export const SYNTHETIC = {
   pass: (n: number) => `pass:${n}`,
-  contra: (id: string) => `contra:${id}`,
+  contra: contraKey,
   contraAll: 'contra:all',
   emptyHanded: 'empty-handed',
   silentPass: 'silent-pass',
@@ -173,6 +219,14 @@ export const GATE_KEYS: readonly KeyId[] = (() => {
     }
   }
   if (!out.includes(SYNTHETIC.allTwelve)) out.push(SYNTHETIC.allTwelve);
+  // The contradiction lines are blocks too (see `OFF_GRAPH_NEEDS`), so their
+  // keys need a bit each — otherwise an account that carries one would read
+  // `changed` for ever, which is the exact failure this list exists to stop.
+  // Appended LAST, so every bit written by an earlier build still decodes to
+  // the key it was written for.
+  for (const [, keys] of OFF_GRAPH_NEEDS) {
+    for (const key of keys) if (!out.includes(key)) out.push(key);
+  }
   return out;
 })();
 
@@ -446,6 +500,13 @@ export function accountHasMore(id: AccountId, k: Knowledge): boolean {
   for (const b of account.blocks) {
     if (!b.needs) continue;
     if (k.effective.has(b.needs) && !then.has(b.needs)) return true;
+  }
+  // …and the blocks that are on the page but not in the corpus: the
+  // contradiction lines (`OFF_GRAPH_NEEDS`). Without this the three
+  // contradictions whose line does not happen to share a key with a corpus
+  // block would tick the hub and point at nothing.
+  for (const key of OFF_GRAPH_NEEDS.get(id) ?? []) {
+    if (k.effective.has(key) && !then.has(key)) return true;
   }
   return false;
 }

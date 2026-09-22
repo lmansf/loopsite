@@ -25,6 +25,14 @@
  *                           held key for the pressable words themselves, for
  *                           the whole document.
  *
+ * **Held key** here means a real aside id *and* `contra:<id>` for every
+ * contradiction the reader has already earned, because those are blocks on
+ * the page too (`compile.ts` renders each contradiction's line as one), and a
+ * block this reader has earned must exist before the first paint like every
+ * other. The key pattern therefore admits `:` as well; it still admits
+ * nothing that could close the attribute selector or the rule, which is what
+ * it is there for.
+ *
  * The solid rule is the second half of §C.2 and §C.8: *dotted = unpressed,
  * solid = held, permanently. The page literally gets more solid as the reader
  * works.* The attribute that carries it, `data-held`, cannot be set from
@@ -70,8 +78,10 @@ if(S.indexOf(' '+s+' ')<0)s='${LANDING}';
 h.setAttribute('data-s',s);
 var b=g('b');if(b!=='valley'&&b!=='hill')b=st.belief===1?'valley':st.belief===2?'hill':'';
 h.setAttribute('data-belief',b||'none');
-var k=st.keys,c='',i,x,P='html[data-loop-js] ';
-if(k&&k.length)for(i=0;i<k.length;i++){x=k[i];if(/^[a-z0-9-]{1,48}$/.test(x))c+=P+'#section-'+s+' .blk[data-needs="'+x+'"]{display:block!important}'+P+'.aside[data-key="'+x+'"]>summary{text-decoration-style:solid}'}
+var k=[],c='',i,x,P='html[data-loop-js] ',K=st.keys,C=st.collected;
+if(K&&K.length)for(i=0;i<K.length;i++)k.push(K[i]);
+if(C&&C.length)for(i=0;i<C.length;i++)k.push('contra:'+C[i]);
+for(i=0;i<k.length;i++){x=k[i];if(typeof x=='string'&&/^[a-z0-9:-]{1,48}$/.test(x))c+=P+'#section-'+s+' .blk[data-needs="'+x+'"]{display:block!important}'+P+'.aside[data-key="'+x+'"]>summary{text-decoration-style:solid}'}
 if(c){var e=d.createElement('style');e.id='loop-keys';e.textContent=c;d.head.appendChild(e)}
 }catch(e){}})();`;
 

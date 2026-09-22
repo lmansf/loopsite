@@ -19,11 +19,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACCOUNT_IDS, allAsides } from '../../src/content/schema.ts';
 import { CORPUS } from '../../src/content/accounts.ts';
+import { CONTRADICTION_HOME as COMPILED_HOME } from '../../src/content/compile.ts';
 import {
   ASIDES,
   ASIDE_BIT,
   CONSUMERS,
   CONTRADICTIONS,
+  CONTRADICTION_HOME,
   EMITTERS,
   auditCorpus,
   decodeAsideMask,
@@ -295,6 +297,67 @@ test('changed is exactly visited-and-has-more, so the three states are unchanged
   assert.equal(accountState('dog', k), 'changed');
   assert.equal(accountState('road', k), 'unread', 'road has it too, and is still unread');
   assert.equal(accountHasMore('road', k), true);
+});
+
+test('the engine and the compiler agree on which account a contradiction line lives in', () => {
+  // The line is prose, so the BLOCK is server-rendered by compile.ts and the
+  // engine only knows the key. If these two ever disagree the reader is sent
+  // to an account that has nothing in it, so they are held to each other here
+  // rather than by a comment in either file.
+  assert.deepEqual([...CONTRADICTION_HOME], [...COMPILED_HOME]);
+  assert.equal(CONTRADICTION_HOME.size, CONTRADICTIONS.length, 'every contradiction has a home');
+  // the account it NAMES FIRST, which is the one that emits needs[0]
+  for (const c of CONTRADICTIONS) {
+    assert.equal(CONTRADICTION_HOME.get(c.id), EMITTERS.get(c.needs[0] as string), c.id);
+  }
+});
+
+test('a contradiction marks the account that carries its line, even with no corpus block there', () => {
+  // `count` is the case that used to pay out as a numeral and nothing else:
+  // its line lives in `moth`, and `moth` has no corpus block behind
+  // `six-wingbeats` or `clock-counts-four`.
+  freshReader();
+  markEntered('moth');
+  grantKey('six-wingbeats');
+  assert.equal(accountHasMore('moth', readKnowledge()), false, 'half of it is not it');
+
+  grantKey('clock-counts-four');
+  const k = readKnowledge();
+  assert.ok(k.contradictions.has('count'));
+  assert.equal(accountHasMore('moth', k), true, 'the moth now says more');
+  assert.equal(accountState('moth', k), 'changed');
+
+  // and it clears by being read, like every other block
+  markEntered('moth');
+  assert.equal(accountState('moth', readKnowledge()), 'read');
+});
+
+test('all five contradictions point somewhere the moment they land', () => {
+  freshReader();
+  for (const id of ACCOUNT_IDS) markEntered(id);
+  for (const c of CONTRADICTIONS) {
+    for (const key of c.needs) grantKey(key);
+    const k = readKnowledge();
+    const home = CONTRADICTION_HOME.get(c.id) as (typeof ACCOUNT_IDS)[number];
+    assert.ok(k.contradictions.has(c.id), `${c.id} is held`);
+    assert.equal(accountState(home, k), 'changed', `${c.id} marks ${home}`);
+    markEntered(home);
+    assert.equal(accountState(home, readKnowledge()), 'read', `${c.id} clears on the re-read`);
+  }
+});
+
+test('a contradiction key survives the entry mask, so the mark clears for good', () => {
+  freshReader();
+  markEntered('lamp');
+  grantKey('lit-from-below');
+  grantKey('lit-from-above');
+  assert.equal(accountState('lamp', readKnowledge()), 'changed');
+  markEntered('lamp');
+  // the mask is what the next session reads back: re-decode it and the key
+  // must still be in there, or the lamp says `it says more now` for ever
+  const mask = readState().entry['lamp'] as string;
+  assert.ok(decodeEntryMask(mask).has('contra:both'), mask);
+  assert.equal(accountState('lamp', readKnowledge()), 'read');
 });
 
 test('the earned block is interleaved at its authored index, not appended', () => {

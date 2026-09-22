@@ -790,3 +790,71 @@ test('the marker clears by being read, and only by being read', async ({ page })
   ).toHaveAttribute('data-state', 'read');
   expect(await cls()).toBe(0);
 });
+
+/* ------------------------- the five contradictions, pointed at */
+
+test('a contradiction marks the account its line is in, and the line is there on arrival', async ({
+  page,
+}) => {
+  // `count` is the one that used to pay out as a numeral and nothing else:
+  // its line lives in the moth, and the moth has no corpus block behind
+  // either half of it. The moth has been read, so the mark is the §C.13
+  // `it says more now`.
+  await seed(page, { keys: ['six-wingbeats'], visited: ['moth'], visits: { moth: 1 } });
+  const cls = await watchLayoutShift(page);
+  await page.goto('/?s=clock');
+  await entered(page, 'clock');
+  const moth = page.locator('#section-clock .night > a[data-slug="moth"]');
+  await expect(moth).not.toHaveAttribute('data-more', 'true');
+
+  await page.locator('#section-clock details.aside[data-key="clock-counts-four"] > summary').click();
+  await expect(page.locator('.ask-bar[data-slug="clock"] .hub')).toHaveText('1/5');
+  await expect(moth).toHaveAttribute('data-more', 'true');
+  await expect(moth).toHaveAttribute('data-state', 'changed');
+  await expect(page.locator('#loop-live')).toContainText('the moth — it says more now');
+
+  // and going there, the line is simply in the page, new for one entry
+  await moth.click();
+  await expect(page.locator('#section-moth')).toBeVisible();
+  const line = page.locator('#section-moth .blk[data-id="contra-count"]');
+  await expect(line).toBeVisible();
+  await expect(line).toHaveAttribute('data-new', 'true');
+  await expect(
+    page.locator('#section-moth .night > a[data-slug="moth"]'),
+  ).not.toHaveAttribute('data-more', 'true');
+  expect(await cls()).toBe(0);
+});
+
+test('a contradiction earned in an earlier session is on the page in the first painted frame', async ({
+  page,
+}) => {
+  // `#loop-keys` carries `contra:<id>` as well as the aside keys, so the line
+  // is not a block that appears after hydration inside an account the reader
+  // is already looking at (§C.6).
+  await seed(page, {
+    keys: ['six-wingbeats', 'clock-counts-four'],
+    collected: ['count'],
+    visited: ['moth', 'clock'],
+    visits: { moth: 1, clock: 1 },
+  });
+  const CHUNKS = '**/_next/static/**/*.js';
+  await page.route(CHUNKS, async (route) => {
+    await new Promise((r) => setTimeout(r, 3000));
+    await route.continue();
+  });
+  await page.goto('/?s=moth', { waitUntil: 'commit' });
+  const line = page.locator('#section-moth .blk[data-id="contra-count"]');
+  await expect(line).toHaveCount(1);
+  const firstFrame = await page.evaluate(() => {
+    const el = document.querySelector('#section-moth .blk[data-id="contra-count"]');
+    return {
+      display: el ? getComputedStyle(el).display : 'missing',
+      held: el?.getAttribute('data-held') ?? null,
+    };
+  });
+  expect(firstFrame.display).not.toBe('none');
+  expect(firstFrame.held, 'the bootstrap did this, not the runtime').toBeNull();
+
+  await page.unroute(CHUNKS);
+  await expect(line).toHaveAttribute('data-held', 'true');
+});
