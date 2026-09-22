@@ -233,9 +233,13 @@ test('REVERSE: drag the head backwards 340°, it persists, Shift+← held undoes
   await loopCode(page);
   await expect(marker(page, 'reverse')).toHaveAttribute('data-on', 'false');
 
-  // The gesture runs inside the page: find the head on the ring layer (the
-  // brightest point on the circle), press on it, and drag back 355° in a
-  // second. Nothing between the read and the press can move the head.
+  // The gesture runs inside the page: find the head on the ring layer, press
+  // on it, and drag back 355° in a second. Nothing between the read and the
+  // press can move the head. The head is painted last, opaque, in
+  // --color-loop-accent-hi, so its pixels carry exactly that colour, opaque,
+  // whatever the comet trail has left underneath (the trail is translucent,
+  // and in the light theme it shares the head's hue); the head is the
+  // circular mean of the ring samples that match it.
   await page.evaluate(async ({ turns, steps }) => {
     const ring = document.getElementById('loop-ring') as HTMLCanvasElement;
     const stage = document.getElementById('stage') as HTMLElement;
@@ -243,25 +247,32 @@ test('REVERSE: drag the head backwards 340°, it persists, Shift+← held undoes
     const R = parseFloat(cs.getPropertyValue('--ring-r'));
     const cx = parseFloat(cs.getPropertyValue('--ring-cx'));
     const cy = parseFloat(cs.getPropertyValue('--ring-cy'));
+    const hex = cs.getPropertyValue('--color-loop-accent-hi').trim();
+    const want = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
     const ctx = ring.getContext('2d')!;
     const dpr = ring.width / ring.clientWidth;
     const img = ctx.getImageData(0, 0, ring.width, ring.height).data;
-    let best = -1;
-    let head = 0;
     const N = 1440;
+    let sx = 0;
+    let sy = 0;
     for (let i = 0; i < N; i++) {
       const a = i / N;
       for (const dr of [-1, 0, 1]) {
         const x = Math.round((cx + (R + dr) * Math.sin(a * Math.PI * 2)) * dpr);
         const y = Math.round((cy - (R + dr) * Math.cos(a * Math.PI * 2)) * dpr);
         const k = (y * ring.width + x) * 4;
-        const lum = (img[k] ?? 0) + (img[k + 1] ?? 0) + (img[k + 2] ?? 0);
-        if (lum > best) {
-          best = lum;
-          head = a;
+        const diff =
+          Math.abs((img[k] ?? 0) - (want[0] as number)) +
+          Math.abs((img[k + 1] ?? 0) - (want[1] as number)) +
+          Math.abs((img[k + 2] ?? 0) - (want[2] as number));
+        if (diff <= 6 && (img[k + 3] ?? 0) === 255) {
+          sx += Math.sin(a * Math.PI * 2);
+          sy += Math.cos(a * Math.PI * 2);
         }
       }
     }
+    if (sx === 0 && sy === 0) throw new Error('the sweep head was not found on the ring layer');
+    const head = (Math.atan2(sx, sy) / (Math.PI * 2) + 1) % 1;
     const rect = stage.getBoundingClientRect();
     const fire = (type: string, a: number) =>
       ring.dispatchEvent(
