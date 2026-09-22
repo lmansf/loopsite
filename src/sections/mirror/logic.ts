@@ -30,6 +30,17 @@ export const CLEAR_EVERY: Readonly<Record<QualityTier, number>> = {
   low: 36,
 };
 
+/**
+ * Tier low keeps the previous frame at half resolution: the transformed
+ * draw then reads a quarter of the pixels and the copy back writes a quarter,
+ * at the cost of a softer tunnel. Tiers only ever reduce work (§C.4).
+ */
+export const PREV_SCALE: Readonly<Record<QualityTier, number>> = {
+  high: 1,
+  mid: 1,
+  low: 0.5,
+};
+
 /** the farthest anything is ever drawn from the centre, in units of R (level 15 + a fire arc) */
 const FAR_R = 1.4;
 

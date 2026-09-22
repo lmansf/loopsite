@@ -36,6 +36,7 @@ import {
   FIRE_SLOTS,
   GHOST_SCALE,
   LEAN_LERP,
+  PREV_SCALE,
   STILL_ALPHA_DECAY,
   STILL_RINGS,
   STILL_ROT,
@@ -325,15 +326,19 @@ export default function Room(props: SectionProps) {
         bg.restore();
       }
 
-      // ---- keep `prev` the same backing size as the room layer
+      // ---- keep `prev` sized to the room layer (a quarter of it at tier low)
       const bw = ctx.canvas.width;
       const bh = ctx.canvas.height;
-      if (prev.width !== bw || prev.height !== bh) {
-        prev.width = bw;
-        prev.height = bh;
+      const prevScale = reducedMotion ? 1 : PREV_SCALE[tier];
+      const pw = Math.max(1, Math.round(bw * prevScale));
+      const ph = Math.max(1, Math.round(bh * prevScale));
+      if (prev.width !== pw || prev.height !== ph) {
+        prev.width = pw;
+        prev.height = ph;
         cacheNodes = null;
       }
       const dpr = bw / w;
+      const prevDpr = pw / w;
 
       // ---- every fire is an echo
       for (let k = 0; k < fired.length; k++) {
@@ -403,8 +408,8 @@ export default function Room(props: SectionProps) {
         prevCtx.setTransform(1, 0, 0, 1, 0, 0);
         prevCtx.globalCompositeOperation = 'source-over';
         prevCtx.globalAlpha = 1;
-        prevCtx.clearRect(0, 0, bw, bh);
-        prevCtx.drawImage(ctx.canvas, 0, 0);
+        prevCtx.clearRect(0, 0, pw, ph);
+        prevCtx.drawImage(ctx.canvas, 0, 0, pw, ph);
 
         // bounded accumulation: every N frames, clear the core that holds
         // everything older than N frames (0.94^N of the way to the centre)
@@ -412,7 +417,7 @@ export default function Room(props: SectionProps) {
         if (frames >= CLEAR_EVERY[tier]) {
           frames = 0;
           prevCtx.save();
-          prevCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          prevCtx.setTransform(prevDpr, 0, 0, prevDpr, 0, 0);
           prevCtx.globalCompositeOperation = 'destination-out';
           prevCtx.beginPath();
           prevCtx.arc(ox, oy, coreRadius(g.R, tier), 0, TAU);

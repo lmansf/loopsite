@@ -29,7 +29,6 @@ import {
   AGENTS_BY_TIER,
   ARROW_MS,
   ATTRACT_STRENGTH,
-  ATTRACT_TAU_MS,
   MAX_AGENTS,
   NEAREST_ACCENT,
   NUDGE_COUNT,
@@ -210,7 +209,7 @@ export default function Room(props: SectionProps) {
     const unsubscribe = subscribeFrame(() => {
       const p = propsRef.current;
       if (!p.visible) return;
-      const { ctx, bg, geometry: g, clock, nodes, fired, reducedMotion, tier } = p;
+      const { ctx, bg, geometry: g, clock, fired, reducedMotion, tier } = p;
       if (!ctx || !bg || g.R <= 0 || g.w <= 0 || g.h <= 0) return;
 
       const w = g.w;
