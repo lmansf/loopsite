@@ -2,12 +2,19 @@
 /**
  * scripts/audit-perf.mjs — the performance gate.
  *
- * Spec: design/05-build-spec.md §H.1, doc 03 §2.5.
+ * Spec: design/11-narrative-build-spec.md §E (the metric table), §H.3.
+ * **OWNED BY WP-D.**
  *
  * Builds (unless --no-build), starts `next start` on port 3111, polls for a
- * 200, runs Lighthouse 13.5.0 three times and asserts the MEDIAN against the
- * §H.1 CI-gate thresholds, runs the byte budgets, writes reports/perf-report.json,
- * and exits non-zero on any breach.
+ * 200, runs Lighthouse 13.5.0 three times on `/` and asserts the MEDIAN
+ * against the §E CI-gate thresholds, runs the byte budgets, takes one
+ * informational reading on an account route so the collapsed-account view is
+ * measured too, writes reports/perf-report.json, and exits non-zero on any
+ * breach.
+ *
+ * Retuned to §E by WP-D: TBT is now **120 ms**, not the 150 of `05` §H.1 —
+ * there is no requestAnimationFrame on load in the narrative build, so the
+ * old headroom is not earned any more.
  *
  * Sandbox notes (doc 03 §10.1) — all of these are set here so the script works
  * whether or not the caller exported them:
@@ -45,14 +52,18 @@ const CHROME =
 process.env.NO_PROXY = 'localhost,127.0.0.1';
 process.env.no_proxy = 'localhost,127.0.0.1';
 
-/** §H.1, default mobile simulate (1638 Kbps, 150 ms RTT, 4x CPU, 412x823 @1.75). */
+/** §E, default mobile simulate (1638 Kbps, 150 ms RTT, 4x CPU, 412x823 @1.75). */
 const GATE = {
   'first-contentful-paint': { max: 1000, label: 'FCP' },
   'largest-contentful-paint': { max: 1800, label: 'LCP' },
   interactive: { max: 2500, label: 'TTI' },
-  'total-blocking-time': { max: 150, label: 'TBT' },
+  // 120, not 150: §E moved it because the narrative build starts no rAF on load.
+  'total-blocking-time': { max: 120, label: 'TBT' },
   'cumulative-layout-shift': { max: 0, label: 'CLS' },
 };
+
+/** The account route, measured once and reported, never gated: one reading is not a median. */
+const SECOND_URL = '/?s=four-seconds';
 const SCORE_GATE = { performance: 0.95, accessibility: 1.0 };
 
 function log(...a) {
@@ -178,19 +189,19 @@ if (!(await waitFor(`http://127.0.0.1:${DEBUG_PORT}/json/version`, 30_000))) {
 
 /* ------------------------------------------------------------ lighthouse */
 
-log(`\n› lighthouse ${RUNS}x (default mobile simulate)…`);
-const runsOut = [];
-for (let i = 0; i < RUNS; i++) {
+/**
+ * One Lighthouse run against `path`, normalised to the numbers the gate reads.
+ * Returns null if the run produced nothing; the caller decides whether that is
+ * fatal (it is, on `/`; it is not on the informational second reading).
+ */
+async function measure(path, label) {
   const result = await lighthouse(
-    `${ORIGIN}/`,
+    `${ORIGIN}${path}`,
     { port: DEBUG_PORT, output: 'json', logLevel: 'error' },
     undefined,
   );
   const lhr = result?.lhr;
-  if (!lhr) {
-    fail(`lighthouse run ${i + 1} produced no result`);
-    continue;
-  }
+  if (!lhr) return null;
   // Lantern estimates LCP from a graph of everything that finished before the
   // OBSERVED LCP paint. Against localhost every script finishes before the first
   // paint, so the "pessimistic" LCP graph swallows all of them and the estimate
@@ -204,9 +215,10 @@ for (let i = 0; i < RUNS; i++) {
     Math.abs(observed.observedLargestContentfulPaint - observed.observedFirstContentfulPaint) <= 1;
   if (sameFrame && lhr.audits['largest-contentful-paint'] && lhr.audits['first-contentful-paint']) {
     lhr.audits['largest-contentful-paint'].numericValue = lhr.audits['first-contentful-paint'].numericValue;
-    if (i === 0) log('  LCP element paints in the FCP frame (observed) → LCP gated as FCP');
+    if (label) log(`  ${label}: LCP element paints in the FCP frame (observed) → LCP gated as FCP`);
   }
-  runsOut.push({
+  return {
+    url: path,
     performance: lhr.categories.performance?.score ?? 0,
     accessibility: lhr.categories.accessibility?.score ?? 0,
     'best-practices': lhr.categories['best-practices']?.score ?? 0,
@@ -214,10 +226,34 @@ for (let i = 0; i < RUNS; i++) {
     audits: Object.fromEntries(
       Object.keys(GATE).map((k) => [k, lhr.audits[k]?.numericValue ?? null]),
     ),
-  });
+  };
+}
+
+log(`\n› lighthouse ${RUNS}x on / (default mobile simulate)…`);
+const runsOut = [];
+for (let i = 0; i < RUNS; i++) {
+  const one = await measure('/', i === 0 ? 'run 1' : '');
+  if (!one) {
+    fail(`lighthouse run ${i + 1} produced no result`);
+    continue;
+  }
+  runsOut.push(one);
   log(
-    `  run ${i + 1}: perf ${(runsOut[i].performance * 100).toFixed(0)} · a11y ${(runsOut[i].accessibility * 100).toFixed(0)}`,
+    `  run ${i + 1}: perf ${(one.performance * 100).toFixed(0)} · a11y ${(one.accessibility * 100).toFixed(0)}`,
   );
+}
+
+// The collapsed-account view, measured once so the whole build is covered and
+// a regression that only shows up off the landing account is visible. One
+// reading is not a median, so it is reported and never gated.
+log(`\n› lighthouse 1x on ${SECOND_URL} (informational)…`);
+const second = await measure(SECOND_URL, SECOND_URL);
+if (second) {
+  log(
+    `  perf ${(second.performance * 100).toFixed(0)} · a11y ${(second.accessibility * 100).toFixed(0)} · CLS ${(second.audits['cumulative-layout-shift'] ?? 0).toFixed(3)}`,
+  );
+} else {
+  log('  no result (informational only)');
 }
 
 shutdown();
@@ -257,7 +293,11 @@ mkdirSync(REPORTS, { recursive: true });
 const reportPath = join(REPORTS, 'perf-report.json');
 writeFileSync(
   reportPath,
-  JSON.stringify({ at: new Date().toISOString(), url: `${ORIGIN}/`, runs: runsOut, medians }, null, 2),
+  JSON.stringify(
+    { at: new Date().toISOString(), url: `${ORIGIN}/`, runs: runsOut, medians, second },
+    null,
+    2,
+  ),
 );
 log(`  report → ${reportPath.replace(ROOT + '/', '')}`);
 

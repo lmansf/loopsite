@@ -13,9 +13,18 @@
            calc(var(--bar-h) + var(--sp-6) + env(safe-area-inset-bottom));
   border-top: 1px solid var(--c-border);
 }
+/* §F.3: every target >= 44 x 44 with >= 8 px of clear space. The row's
+   `gap: var(--sp-4)` is 16 px, and `min-width` is what keeps a short label
+   from shrinking the box below the floor in its other dimension — the F3
+   deduction the outgoing site lost a point to.
+
+   §F.2, and the rubric point the outgoing site lost: the controls sit in the
+   flow at the foot of the document, under the thumb, never pinned into a top
+   corner. The ask bar is the one fixed element on this site and it is
+   bottom-anchored; nothing here may become a second one. */
 .loop-footer button {
-  display: inline-flex; align-items: center;
-  min-height: 44px; padding: 0 var(--sp-2);
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; min-width: 44px; padding: 0 var(--sp-2);
   font-size: var(--text-xs); letter-spacing: var(--ls-label);
   color: var(--c-text-muted);
   border-radius: var(--radius-sm);
@@ -29,6 +38,12 @@
   border-bottom-color: var(--c-accent);
 }
 .loop-footer button[data-busy="true"] { color: var(--c-accent); }
+/* The global rule is a 2 px ring at 2 px offset (§F.4); it is restated here so
+   the offset clears the hover underline and the ring is never clipped by a
+   neighbour at the 320 px wrap. */
+.loop-footer button:focus-visible {
+  outline: 2px solid var(--c-focus); outline-offset: 3px;
+}
 
 @media (min-width: 900px) {
   .loop-footer { padding-bottom: calc(var(--bar-h) + var(--sp-6)); }

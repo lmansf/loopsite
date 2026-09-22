@@ -10,9 +10,18 @@
  *   Tier C   total JS transferred on the landing route               <= 230 KB gz, soft
  *   CSS      total                                                   <= 14 KB gz
  *   Document the prerendered landing HTML, gzipped                   <= 40 KB gz, HARD
+ *            and every prerendered alias document with it             <= 40 KB gz, HARD
  *   Flight   the inline RSC payload (self.__next_f.push), gzipped    <= 18 KB gz, HARD
  *   Fonts    0 bytes.   Raster images   0 bytes.
- *   Figures  every lazy chunk <= 2 KB gz
+ *   Origins  third-party origins fetched by the document             0, HARD (§E item 5)
+ *   Figures  EVERY lazy chunk <= 2 KB gz
+ *
+ * WP-D extended three of those so the whole build is measured, not a sample of
+ * it: the alias routes carry the same corpus and are prerendered, so they are
+ * weighed against the document budget too; the figure ceiling is applied to
+ * every lazy chunk rather than to the five largest; and "zero third-party
+ * origins, zero fonts, zero images, zero embeds" (§E item 5) is now a gate
+ * instead of a promise.
  *
  * The document and the flight are the only genuinely new risk in this build:
  * the page now carries ~5000 words, and it carries them TWICE — once as the
@@ -104,6 +113,38 @@ const flightChunks = [...html.matchAll(/self\.__next_f\.push\(([\s\S]*?)\)<\/scr
 );
 const flightBytes = flightChunks.length > 0 ? gz(Buffer.from(flightChunks.join(''), 'utf8')) : 0;
 
+// The alias routes are prerendered and carry the same corpus; §E's document
+// budget is about what a reader receives, and a reader can receive one of
+// these. Measured against the same ceiling, reported as the worst case.
+const aliasDocs = walk(join(NEXT, 'server', 'app', 's'))
+  .filter((p) => p.endsWith('.html'))
+  .map((p) => ({ p, size: gz(readFileSync(p)) }))
+  .sort((a, b) => b.size - a.size);
+const worstAlias = aliasDocs[0] ?? null;
+
+/* --------------------------------------------- third-party origins (§E.5) */
+
+// Zero third-party origins, zero fonts, zero images, zero embeds. Only
+// elements that FETCH are counted: a canonical link or an og:url is a string,
+// not a request.
+const FETCHERS = [
+  /<script[^>]+src="(https?:\/\/[^"]+)"/g,
+  /<link[^>]+rel="(?:stylesheet|preload|prefetch|preconnect|dns-prefetch|modulepreload)"[^>]*href="(https?:\/\/[^"]+)"/g,
+  /<link[^>]+href="(https?:\/\/[^"]+)"[^>]*rel="(?:stylesheet|preload|prefetch|preconnect|dns-prefetch|modulepreload)"/g,
+  /<(?:img|iframe|video|audio|source|embed|track)[^>]+src="(https?:\/\/[^"]+)"/g,
+  /@import\s+url\(["']?(https?:\/\/[^)"']+)/g,
+];
+const origins = new Set();
+for (const re of FETCHERS) {
+  for (const m of html.matchAll(re)) {
+    try {
+      origins.add(new URL(m[1]).origin);
+    } catch {
+      /* not a URL we can parse is not an origin we can fetch */
+    }
+  }
+}
+
 /* ------------------------------------------------------------ tier A */
 
 const cssHrefs = [...html.matchAll(/<link[^>]+href="([^"]+\.css[^"]*)"/g)].map((m) => m[1]);
@@ -192,11 +233,11 @@ for (const htmlPath of walk(join(NEXT, 'server')).filter((p) => p.endsWith('.htm
   }
 }
 const RUNTIME = /(^|[\/])(framework|main|main-app|polyfills|webpack)-[^\/]*\.js$|[\/](pages|app)[\/]/;
-const lazyChunks = allChunks.filter((p) => !landing.has(p) && !referenced.has(p) && !RUNTIME.test(p));
-const largestLazy = lazyChunks
+const lazyChunks = allChunks
+  .filter((p) => !landing.has(p) && !referenced.has(p) && !RUNTIME.test(p))
   .map((p) => ({ p, size: gz(readFileSync(p)) }))
-  .sort((a, b) => b.size - a.size)
-  .slice(0, 5);
+  .sort((a, b) => b.size - a.size);
+const largestLazy = lazyChunks.slice(0, 5);
 
 /* ------------------------------------------------------------ fonts / rasters */
 
@@ -217,9 +258,13 @@ console.log(`          └─ inline boot    ${fmt(inlineBytes).padStart(10)}  /
 console.log(`  Tier B  first-party JS    ${fmt(tierB).padStart(10)}  / ${fmt(BUDGETS.tierB)}  hard`);
 console.log(`  Tier C  total JS          ${fmt(tierC).padStart(10)}  / ${fmt(BUDGETS.tierC)}  soft`);
 console.log(`  Document  landing HTML    ${fmt(docBytes).padStart(10)}  / ${fmt(BUDGETS.doc)}  hard`);
+console.log(
+  `            worst alias    ${(worstAlias ? fmt(worstAlias.size) : '—').padStart(10)}  / ${fmt(BUDGETS.doc)}  hard  (${aliasDocs.length} routes)`,
+);
 console.log(`  Flight    inline RSC      ${fmt(flightBytes).padStart(10)}  / ${fmt(BUDGETS.flight)}  hard`);
 console.log(`  Fonts                     ${String(fontBytes).padStart(10)} B  / 0 B`);
 console.log(`  Rasters                   ${String(rasterBytes).padStart(10)} B  / 0 B`);
+console.log(`  Third-party origins       ${String(origins.size).padStart(10)}    / 0`);
 console.log(`  ${baselineNote}`);
 console.log('─'.repeat(64));
 console.log(`  landing scripts: ${perScript.length}, lazy chunks: ${lazyChunks.length}`);
@@ -239,15 +284,18 @@ if (flightBytes > BUDGETS.flight) {
 if (tierC > BUDGETS.tierC) console.warn(`! Tier C ${fmt(tierC)} over the soft ${fmt(BUDGETS.tierC)}`);
 if (fontBytes > 0) fail(`${fontBytes} font bytes shipped — the budget is zero`);
 if (rasterBytes > 0) fail(`${rasterBytes} raster bytes shipped — the budget is zero`);
+if (worstAlias && worstAlias.size > BUDGETS.doc) {
+  fail(`the alias document ${worstAlias.p.replace(ROOT + '/', '')} is ${fmt(worstAlias.size)}, over ${fmt(BUDGETS.doc)}`);
+}
+for (const origin of origins) fail(`third-party origin fetched by the document: ${origin} — the budget is zero`);
 
-// Every figure's lazy chunk must be <= 2 KB gz (§H.1). `src/figures/**` is
-// WP-C's and does not exist yet, so an empty lazy set is reported, not failed:
-// the ceiling is what is enforced, and nothing may cross it.
-console.log(`  lazy chunks over ${fmt(BUDGETS.figure)}: ${largestLazy.filter((c) => c.size > BUDGETS.figure).length}`);
-for (const c of largestLazy) {
-  if (c.size > BUDGETS.figure) {
-    fail(`lazy chunk ${c.p.replace(ROOT + '/', '')} is ${fmt(c.size)}, over the ${fmt(BUDGETS.figure)} figure ceiling`);
-  }
+// Every figure's lazy chunk must be <= 2 KB gz (§H.1) — EVERY one, not the
+// five that happen to be printed above. An empty lazy set is reported, not
+// failed: the ceiling is what is enforced, and nothing may cross it.
+const overFigure = lazyChunks.filter((c) => c.size > BUDGETS.figure);
+console.log(`  lazy chunks over ${fmt(BUDGETS.figure)}: ${overFigure.length} of ${lazyChunks.length}`);
+for (const c of overFigure) {
+  fail(`lazy chunk ${c.p.replace(ROOT + '/', '')} is ${fmt(c.size)}, over the ${fmt(BUDGETS.figure)} figure ceiling`);
 }
 
 if (process.exitCode) {
