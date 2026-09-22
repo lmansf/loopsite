@@ -35,7 +35,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(4rem, 46%), 1fr));
   gap: var(--sp-2);
-  margin-top: var(--sp-4);
+  margin-top: var(--sp-3);
   max-width: min(var(--measure-read), 21.5rem);
 }
 .night > a {
@@ -153,10 +153,14 @@
   align-items: center; gap: var(--sp-3);
   min-height: var(--bar-h);
   padding: 6px var(--gutter) max(10px, env(safe-area-inset-bottom));
-  background: var(--c-surface-overlay);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  /* OPAQUE, and it was not. A translucent bar let the prose read through it
+     at the bottom of a phone screen: two paragraphs competing for the same
+     56 px, which is worse than either a bar or a paragraph. The rule and the
+     shadow are the edge of the page — the story stops there and the control
+     starts. `.blocks` already reserves 72 px below the last line for it. */
+  background: var(--c-surface);
   border-top: 1px solid var(--c-border);
+  box-shadow: 0 -8px 16px -12px rgb(0 0 0 / .5);
   pointer-events: none;
 }
 .ask-bar > * { pointer-events: auto; }
