@@ -263,7 +263,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       setCollected(stored.collected);
       // A visitor who has been somewhere already, or who arrived at another
       // room by link, is not in the first thirty seconds of §B.
-      if (startedElsewhere || stored.visited.length > 1) showRingway();
+      if (startedElsewhere || stored.visited.some((s) => s !== 'origin')) showRingway();
     });
 
     // §C.11: idle is measured from the last real input of any kind.
@@ -331,7 +331,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     enteredAtRef.current = getFrame().t;
     countedVisit.current = '';
     escalatedRef.current = false;
-  }, [section]);
+    // Anyone who is not in ORIGIN has been somewhere: the Ringway is theirs.
+    // (This also covers a deep link, which React first hydrates as ORIGIN from
+    // the server snapshot and re-renders to the real room a tick later.)
+    if (section !== 'origin') showRingway();
+  }, [section, showRingway]);
 
   useEffect(() => {
     const unsub = subscribeFrame((f) => {
@@ -406,7 +410,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!mod) return;
     const from = prevSectionRef.current;
     prevSectionRef.current = section;
-    if (from !== section) {
+    // The hydration re-render (server snapshot ORIGIN -> the URL's room) is not
+    // a corridor move; nothing animates in the first half second.
+    if (from !== section && getFrame().t >= 500) {
       const dir = travelDir(from, section);
       corridorTransition(dir);
       if (navTimer.current) clearTimeout(navTimer.current);
