@@ -197,3 +197,29 @@ and 404s off it, which would break the zero-console-errors gate).
 returns 204. In production those lines land in Vercel's runtime logs. Swapping
 the `console.log` for a log drain or a KV write does not touch a line of client
 code.
+
+## Status (2026-09-22)
+
+The bar for "ready" was an estimated **≥ 90 % of visitors not bouncing**, scored
+with the 100-point bounce-risk rubric in `design/05-build-spec.md` §H
+(≥ 92 = estimated ≥ 90 % non-bounce). Three independent audit passes on the
+built site are in `design/07`, `08` and `09`:
+
+| Pass | Score | Result |
+|---|---|---|
+| 1 (`design/07-bounce-audit.md`) | 84 / 100 | eight fixes prescribed |
+| 2 (`design/08-bounce-audit-2.md`) | 93 / 100 | two phone-layout regressions found and fixed |
+| 3 (`design/09-bounce-audit-3.md`) | **96 / 100** | all hard gates pass, zero penalties |
+
+Verified on the final build (`pnpm verify` + `pnpm audit:perf`):
+
+| Gate | Result |
+|---|---|
+| unit / e2e / a11y | 19 · 363 (0 failed) · 20 passed |
+| Lighthouse mobile (3-run median) | performance 99 · accessibility 100 · FCP = LCP 913 ms · TBT 89 ms · TTI 2.15 s · CLS 0 |
+| bytes (gzip) | render-blocking 12.3 KB · first-party JS 43.2 KB · total JS 185 KB · fonts 0 · images 0 |
+
+Remaining rubric deductions (4 points, all cosmetic, listed with fixes in
+`design/09`): 200 % zoom on a phone pushes some notches off-screen; the two
+outbound controls sit in the top corner on phones; 4 px row gaps on the
+shortest phones; the desktop dial's ticks are small.
