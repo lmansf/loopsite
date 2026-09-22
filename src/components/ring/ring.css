@@ -126,6 +126,9 @@ html[data-loop-pointer] .rf-cursor:nth-child(3) { opacity: .16; }
 /* the state caption fades in beneath the ring */
 #loop-status:not(:empty) { animation: loop-status-in var(--dur-5) var(--ease-enter) both; }
 @keyframes loop-status-in { from { opacity: 0; transform: translate(-50%, 4px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* RETURN's final line takes 900 ms to arrive (§D.12); 160 ms under reduced motion */
+html[data-final-line] #loop-status:not(:empty) { animation-duration: 900ms; }
+:root[data-motion="reduce"][data-final-line] #loop-status:not(:empty) { animation-duration: var(--dur-5); }
 
 /* ---------- 4. RETURN: the door and the map ---------- */
 .rt-door {

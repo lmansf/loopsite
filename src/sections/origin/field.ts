@@ -39,6 +39,47 @@ export function drawField(ctx: CanvasRenderingContext2D, g: RingGeometry, alpha:
   ctx.fillRect(0, 0, g.w, g.h);
 }
 
+/**
+ * The field, rasterized once per distinct (geometry, 8-bit alpha) into an
+ * offscreen bitmap and blitted each frame: a full-viewport gradient is the most
+ * expensive thing either room paints, and its alpha only takes a handful of
+ * distinct 8-bit values per revolution.
+ */
+export interface FieldCache {
+  canvas: HTMLCanvasElement | null;
+  key: string;
+}
+
+export function newFieldCache(): FieldCache {
+  return { canvas: null, key: '' };
+}
+
+export function drawFieldCached(ctx: CanvasRenderingContext2D, g: RingGeometry, alpha: number, cache: FieldCache): void {
+  const a = Math.round(alpha * 255) / 255;
+  const dpr = ctx.canvas.width / Math.max(1, g.w);
+  const key = `${g.w}|${g.h}|${g.R}|${g.cx}|${g.cy}|${dpr}|${a}`;
+  if (cache.key !== key || !cache.canvas) {
+    const c = cache.canvas ?? document.createElement('canvas');
+    if (c.width !== ctx.canvas.width) c.width = ctx.canvas.width;
+    if (c.height !== ctx.canvas.height) c.height = ctx.canvas.height;
+    const off = c.getContext('2d');
+    if (!off) {
+      drawField(ctx, g, a);
+      return;
+    }
+    off.setTransform(1, 0, 0, 1, 0, 0);
+    off.clearRect(0, 0, c.width, c.height);
+    off.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawField(off, g, a);
+    cache.canvas = c;
+    cache.key = key;
+  }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(cache.canvas, 0, 0);
+  ctx.restore();
+}
+
 export interface Ripple {
   x: number;
   y: number;

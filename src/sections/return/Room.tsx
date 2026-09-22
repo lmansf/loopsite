@@ -23,12 +23,20 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { subscribeFrame } from '@/lib/clock';
-import { animateEl } from '@/lib/motion';
 import { readState, writeState } from '@/lib/storage';
 import type { SectionProps } from '@/lib/types';
 import { getSeed, setRingDoor } from '@/components/ring/ring-state';
 import { useLoop } from '@/components/shell/LoopContext';
-import { clearLayer, drawField, drawRipples, drawSecondRing, drawTraces, nodePoint, type Ripple } from '../origin/field';
+import {
+  clearLayer,
+  drawFieldCached,
+  drawRipples,
+  drawSecondRing,
+  drawTraces,
+  newFieldCache,
+  nodePoint,
+  type Ripple,
+} from '../origin/field';
 import {
   advanceSecondRing,
   breathe,
@@ -40,7 +48,6 @@ import {
 import {
   allLit,
   FINAL_LINE,
-  FINAL_LINE_MS,
   isLit,
   litNotches,
   returnDepth,
@@ -96,6 +103,7 @@ export default function Room(props: SectionProps) {
     let bgCleared: CanvasRenderingContext2D | null = null;
     let lastVisited: readonly string[] | null = null;
     let notches: number[] = [];
+    const fieldCache = newFieldCache();
 
     const unsubscribe = subscribeFrame(() => {
       const p = propsRef.current;
@@ -109,7 +117,7 @@ export default function Room(props: SectionProps) {
         bgCleared = bg;
       }
       clearLayer(ctx);
-      drawField(ctx, g, FIELD_FULL * breathe(clock.phase, clock.t, reducedMotion));
+      drawFieldCached(ctx, g, FIELD_FULL * breathe(clock.phase, clock.t, reducedMotion), fieldCache);
 
       // --- traces of everywhere the visitor has been
       const vis = readState().visited;
@@ -136,18 +144,13 @@ export default function Room(props: SectionProps) {
       phase2 = advanceSecondRing(phase2, dt, clock.dir, clock.periodMs);
       drawSecondRing(ctx, g, reducedMotion ? quantize12(phase2) : phase2, SECOND_RING_ALPHA, reducedMotion);
 
-      // --- the final line, once, when the twelfth notch lights
+      // --- the final line, once, when the twelfth notch lights. It fades in
+      //     over 900 ms (160 ms under reduced motion) by CSS: ring.css lengthens
+      //     the caption's entrance while html[data-final-line] is set.
       if (eligibleForFinalLine && !finalLineShown && allLit(vis)) {
         finalLineShown = true;
+        document.documentElement.setAttribute('data-final-line', '');
         p.say(FINAL_LINE);
-        const status = document.getElementById('loop-status');
-        if (status) {
-          void animateEl(status, [{ opacity: 0 }, { opacity: 1 }], {
-            duration: FINAL_LINE_MS,
-            easing: 'cubic-bezier(.16,1,.3,1)',
-            fill: 'both',
-          });
-        }
       }
 
       // --- depth, monotonic, at most once per 0.25 step
@@ -161,6 +164,7 @@ export default function Room(props: SectionProps) {
     return () => {
       unsubscribe();
       setRingDoor(false);
+      document.documentElement.removeAttribute('data-final-line');
     };
   }, [props.seed, props.reducedMotion]);
 

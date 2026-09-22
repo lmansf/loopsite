@@ -315,7 +315,12 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
 
     /* ---------------------------------------------------------- adopting the bootstrap */
 
-    if (!st.bootAdopted) {
+    /**
+     * Runs on the FIRST FRAME, not in the effect body: child effects run before
+     * parent effects, so a node added during mount would be emitted before
+     * AppShell has subscribed to the store and `data-node-count` would miss it.
+     */
+    function adoptBootstrap(): void {
       st.bootAdopted = true;
       // A shared link populates the ring (§C.7); the site's seed steps aside.
       if (readUrlState().loopCode || nodes.length > 0) {
@@ -325,7 +330,7 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
       if (boot) {
         boot.frame = getFrame();
         if (boot.tap) markInteracted();
-        const rect = stage.getBoundingClientRect();
+        const rect = stage!.getBoundingClientRect();
         for (const tap of boot.taps ?? []) {
           const x = tap.x - rect.left;
           const y = tap.y - rect.top;
@@ -337,9 +342,9 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
         }
         if (boot.taps) boot.taps = [];
       }
-      stage.dataset.ghostFires = '0';
-      stage.dataset.ghost = st.interacted ? 'off' : 'idle';
-      stage.dataset.refused = '0';
+      stage!.dataset.ghostFires = String(st.ghostFires);
+      stage!.dataset.ghost = st.interacted ? 'off' : 'idle';
+      stage!.dataset.refused = String(st.refused);
     }
 
     /* ---------------------------------------------------------- drawing */
@@ -537,9 +542,17 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
 
       // --- comet trail (polyline, exp(−age/τ)), then the crisp ring over it
       if (!reduced) {
+        // one point per ~6 px of travel keeps the tail at ~16–24 strokes a frame
         const last = trail[trail.length - 1];
-        if (!last || Math.hypot(last.x - head.x, last.y - head.y) >= 0.5) {
-          trail.push({ x: head.x, y: head.y, t: f.t, flare: flare > 0 ? flare / FLARE_MS : 0 });
+        const fl = flare > 0 ? flare / FLARE_MS : 0;
+        if (!last || Math.hypot(last.x - head.x, last.y - head.y) >= 6) {
+          trail.push({ x: head.x, y: head.y, t: f.t, flare: fl });
+        } else if (trail.length >= 2) {
+          // slide the newest point along with the head so the tail stays attached
+          last.x = head.x;
+          last.y = head.y;
+          last.t = f.t;
+          last.flare = Math.max(last.flare, fl);
         }
         drawTrail(ctx, f.t);
       } else if (trail.length) {
@@ -641,6 +654,7 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
     /* ---------------------------------------------------------- the frame driver */
 
     const unsubFrame = subscribeFrame((f) => {
+      if (!st.bootAdopted) adoptBootstrap();
       const reduced = loopRef.current.reducedMotion;
       const dt = f.dt;
       const p0 = prevPhase;
@@ -882,16 +896,18 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
       }
       if (cancelled) return;
 
-      // release velocity from the last ~120 ms of movement
+      // release velocity: the last ~120 ms of movement, or the last segment if
+      // the pointer reported more sparsely than that (a loaded main thread)
       const now = performance.now();
+      const last = samples[samples.length - 1] ?? { x, y, t: now };
       let from: Sample | null = null;
       for (const s of samples) {
-        if (now - s.t <= 120) {
+        if (now - s.t <= 120 && s !== last) {
           from = s;
           break;
         }
       }
-      const last = samples[samples.length - 1] ?? { x, y, t: now };
+      if (!from && samples.length >= 2) from = samples[samples.length - 2] ?? null;
       const dtMs = from ? Math.max(1, last.t - from.t) : 1;
       const speed = from ? Math.hypot(last.x - from.x, last.y - from.y) / dtMs : 0;
       const dist = Math.hypot(x - geometry.cx, y - geometry.cy);
@@ -934,7 +950,9 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
       if (!/^(Tab|Shift|Control|Alt|Meta|CapsLock)$/.test(e.key)) markInteracted();
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
-        const node = addNode(getFrame().phase, st.lastLevel);
+        // quantized to 1/256 on commit; nudged half a step back so rounding can
+        // never land the node a few ms AHEAD of the head (an instant fire)
+        const node = addNode(getFrame().phase - 0.5 / 256, st.lastLevel);
         if (!node) {
           rimFlash = RIM_FLASH_MS;
           st.refused += 1;

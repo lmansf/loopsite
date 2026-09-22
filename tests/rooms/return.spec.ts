@@ -78,9 +78,15 @@ async function ringAlpha(page: Page, k: number, canvasId: string) {
       const N = 36;
       for (let i = 0; i < N; i++) {
         const a = (i / N) * Math.PI * 2;
-        const x = Math.round((cx + R * k * Math.sin(a)) * dpr);
-        const y = Math.round((cy - R * k * Math.cos(a)) * dpr);
-        sum += ctx.getImageData(x, y, 1, 1).data[3]!;
+        // a 1 px stroke lands on a fractional pixel: take the brightest of a 3 px radial band
+        let best = 0;
+        for (const dr of [-1.5, 0, 1.5]) {
+          const rr = R * k + dr;
+          const x = Math.round((cx + rr * Math.sin(a)) * dpr);
+          const y = Math.round((cy - rr * Math.cos(a)) * dpr);
+          best = Math.max(best, ctx.getImageData(x, y, 1, 1).data[3]!);
+        }
+        sum += best;
       }
       return sum / N;
     },
@@ -88,8 +94,12 @@ async function ringAlpha(page: Page, k: number, canvasId: string) {
   );
 }
 
-/** The brightest green channel in a small window at 12 o'clock on the ring layer. */
-async function topOfRingGreen(page: Page) {
+/**
+ * How many pixels in a small window at 12 o'clock on the ring layer are the
+ * resolved `--c-accent-hi` (the door's threshold line). Theme-agnostic: the
+ * token is read from the page, not assumed.
+ */
+async function thresholdPixels(page: Page) {
   return page.evaluate(() => {
     const canvas = document.getElementById('loop-ring') as HTMLCanvasElement;
     const ctx = canvas.getContext('2d')!;
@@ -97,12 +107,18 @@ async function topOfRingGreen(page: Page) {
     const R = parseFloat(s.getPropertyValue('--ring-r'));
     const cx = parseFloat(s.getPropertyValue('--ring-cx'));
     const cy = parseFloat(s.getPropertyValue('--ring-cy'));
+    const hex = s.getPropertyValue('--color-loop-accent-hi').trim();
+    const want = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
     const dpr = canvas.width / canvas.clientWidth;
     const w = Math.round(12 * dpr);
     const { data } = ctx.getImageData(Math.round(cx * dpr) - w / 2, Math.round((cy - R) * dpr) - w / 2, w, w);
-    let g = 0;
-    for (let i = 0; i < data.length; i += 4) if (data[i + 3]! > 40) g = Math.max(g, data[i + 1]!);
-    return g;
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3]! < 120) continue;
+      const d = Math.abs(data[i]! - want[0]!) + Math.abs(data[i + 1]! - want[1]!) + Math.abs(data[i + 2]! - want[2]!);
+      if (d < 40) n++;
+    }
+    return n;
   });
 }
 
@@ -129,13 +145,16 @@ test(`${SLUG}: the second ring is there from the first frame, and the door is cu
   await page.waitForSelector('html[data-ring-live]');
   await page.waitForTimeout(400);
   expect(await ringAlpha(page, 0.72, 'loop-room')).toBeGreaterThan(30);
-  // the threshold line at 12 o'clock is --c-accent-hi (bright); ORIGIN's stroke there is not
-  expect(await topOfRingGreen(page)).toBeGreaterThan(150);
+  // the threshold line at 12 o'clock is --c-accent-hi; ORIGIN's stroke there is not
+  expect(await thresholdPixels(page)).toBeGreaterThan(8);
 
   await page.goto('/?s=origin');
   await page.waitForSelector('html[data-ring-live]');
   await page.waitForTimeout(400);
-  expect(await topOfRingGreen(page)).toBeLessThan(120);
+  // two samples 700 ms apart: the sweep head (also --c-accent-hi) cannot be at 12 o'clock for both
+  const first = await thresholdPixels(page);
+  await page.waitForTimeout(700);
+  expect(Math.min(first, await thresholdPixels(page))).toBe(0);
 });
 
 test(`${SLUG}: the door opens the rooms, Esc closes it and returns focus, a link travels`, async ({ page }) => {

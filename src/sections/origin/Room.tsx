@@ -27,7 +27,7 @@ import { useEffect, useRef } from 'react';
 import { subscribeFrame } from '@/lib/clock';
 import type { SectionProps } from '@/lib/types';
 import { getSeed } from '@/components/ring/ring-state';
-import { clearLayer, drawField, drawRipples, drawSecondRing, nodePoint, type Ripple } from './field';
+import { clearLayer, drawFieldCached, drawRipples, drawSecondRing, newFieldCache, nodePoint, type Ripple } from './field';
 import {
   advanceSecondRing,
   breathe,
@@ -65,6 +65,10 @@ export default function Room(props: SectionProps) {
     let ringAge = secondRingUnlocked ? SECOND_RING_FADE_MS : 0;
     let everFired = false;
     let bgCleared: CanvasRenderingContext2D | null = null;
+    let lastAlpha = -1;
+    let lastCtx: CanvasRenderingContext2D | null = null;
+    let lastGeometry: SectionProps['geometry'] | null = null;
+    const fieldCache = newFieldCache();
 
     const unsubscribe = subscribeFrame(() => {
       const p = propsRef.current;
@@ -72,16 +76,6 @@ export default function Room(props: SectionProps) {
       const { ctx, bg, geometry: g, clock, nodes, fired, reducedMotion } = p;
       if (!ctx || g.R <= 0) return;
       const dt = clock.dt;
-
-      // The field is drawn on the room layer so the still is a complete image
-      // on the layer the calm-variant gate inspects; the background layer is
-      // left clean for the corridor's pan.
-      if (bg && bgCleared !== bg) {
-        clearLayer(bg);
-        bgCleared = bg;
-      }
-      clearLayer(ctx);
-      drawField(ctx, g, fieldAlpha(nodes.length) * breathe(clock.phase, clock.t, reducedMotion));
 
       // --- ripples: every node the sweep crossed this frame, and the seed's pulse
       for (const ev of fired) {
@@ -95,6 +89,30 @@ export default function Room(props: SectionProps) {
         ripples.push({ x: pt.x, y: pt.y, age: 0 });
       }
       prevPhase = clock.phase;
+
+      // --- depth, monotonic, at most once per 0.25 step
+      const depth = originDepth(nodes.length, everFired, secondRingUnlocked && ringAge >= SECOND_RING_FADE_MS);
+      if (depth > depthRef.current) {
+        depthRef.current = depth;
+        p.onExplore({ name: 'depth_reached', section: p.id, depth });
+      }
+
+      // The field is drawn on the room layer so the still is a complete image
+      // on the layer the calm-variant gate inspects; the background layer is
+      // left clean for the corridor's pan. An idle frame — nothing moving and
+      // the field's 8-bit alpha unchanged — repaints nothing at all.
+      const alpha = Math.round(fieldAlpha(nodes.length) * breathe(clock.phase, clock.t, reducedMotion) * 255) / 255;
+      const busy = ripples.length > 0 || secondRingUnlocked || nodes.length >= SECOND_RING_AFTER;
+      if (!busy && alpha === lastAlpha && ctx === lastCtx && g === lastGeometry) return;
+      lastAlpha = alpha;
+      lastCtx = ctx;
+      lastGeometry = g;
+      if (bg && bgCleared !== bg) {
+        clearLayer(bg);
+        bgCleared = bg;
+      }
+      clearLayer(ctx);
+      drawFieldCached(ctx, g, alpha, fieldCache);
       drawRipples(ctx, ripples, dt, reducedMotion);
 
       // --- the second ring, after the third node
@@ -108,13 +126,6 @@ export default function Room(props: SectionProps) {
         phase2 = advanceSecondRing(phase2, dt, clock.dir, clock.periodMs);
         const fade = reducedMotion ? 1 : Math.min(1, ringAge / SECOND_RING_FADE_MS);
         drawSecondRing(ctx, g, reducedMotion ? quantize12(phase2) : phase2, SECOND_RING_ALPHA * fade, reducedMotion);
-      }
-
-      // --- depth, monotonic, at most once per 0.25 step
-      const depth = originDepth(nodes.length, everFired, secondRingUnlocked && ringAge >= SECOND_RING_FADE_MS);
-      if (depth > depthRef.current) {
-        depthRef.current = depth;
-        p.onExplore({ name: 'depth_reached', section: p.id, depth });
       }
     });
 

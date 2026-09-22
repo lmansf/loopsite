@@ -52,10 +52,15 @@ async function ringAlpha(page: Page, k: number, canvasId = 'loop-room') {
       const N = 36;
       for (let i = 0; i < N; i++) {
         const a = (i / N) * Math.PI * 2;
-        const x = Math.round((cx + R * k * Math.sin(a)) * dpr);
-        const y = Math.round((cy - R * k * Math.cos(a)) * dpr);
-        const px = ctx.getImageData(x, y, 1, 1).data;
-        sum += px[3]!;
+        // a 1 px stroke lands on a fractional pixel: take the brightest of a 3 px radial band
+        let best = 0;
+        for (const dr of [-1.5, 0, 1.5]) {
+          const rr = R * k + dr;
+          const x = Math.round((cx + rr * Math.sin(a)) * dpr);
+          const y = Math.round((cy - rr * Math.cos(a)) * dpr);
+          best = Math.max(best, ctx.getImageData(x, y, 1, 1).data[3]!);
+        }
+        sum += best;
       }
       return sum / N;
     },
@@ -176,7 +181,7 @@ test(`${SLUG}: a node fires exactly one revolution after it is placed (4000 ms Â
       const started = performance.now();
       const poll = () => {
         if (boot.lastFire && boot.lastFire.t > t0) return resolve(boot.lastFire);
-        if (performance.now() - started > 6000) return resolve(null);
+        if (performance.now() - started > 15_000) return resolve(null); // wall; the assertion is in clock time
         requestAnimationFrame(poll);
       };
       poll();
@@ -207,7 +212,9 @@ test(`${SLUG}: the hero copy sequence, verbatim and in order`, async ({ page }) 
   await page.waitForTimeout(500);
   expect(parseFloat(await title.evaluate((el) => getComputedStyle(el).opacity))).toBeLessThan(0.05);
 
-  await expect(page.locator('#loop-status')).toHaveText('again', { timeout: 5000 });
+  // one revolution (4000 ms of clock time) plus a React commit; the exact
+  // 4000 ms Â±40 ms is asserted in clock time by the fire-timing test above
+  await expect(page.locator('#loop-status')).toHaveText('again', { timeout: 9000 });
   await page.keyboard.press('Space');
   await page.keyboard.press('Space');
   await expect(page.locator('#loop-status')).toHaveText("now it's yours");
@@ -219,14 +226,37 @@ test(`${SLUG}: the hero copy sequence, verbatim and in order`, async ({ page }) 
 test(`${SLUG}: the ghost demo fires at 6 s and 14 s, exactly twice, then never`, async ({ page }) => {
   test.slow();
   await page.goto('/');
-  const stage = page.locator('#stage');
-  await expect(stage).toHaveAttribute('data-ghost-fires', '0');
-  await expect(stage).toHaveAttribute('data-ghost-fires', '1', { timeout: 9500 });
-  await expect(stage).toHaveAttribute('data-ghost-fires', '2', { timeout: 12000 });
-  await expect(stage).toHaveAttribute('data-ghost', 'done', { timeout: 3000 });
-  await page.waitForTimeout(2500);
-  await expect(stage).toHaveAttribute('data-ghost-fires', '2');
-  await expect(stage).toHaveAttribute('data-node-count', '0'); // a ghost is never a node
+  await page.waitForSelector('html[data-ring-live]');
+  await expect(page.locator('#stage')).toHaveAttribute('data-ghost-fires', '0');
+  // Measured in CLOCK time (window.__loop.frame.t): the schedule is the site's
+  // clock, which lags wall time on a starved machine (dt clamps at 50 ms).
+  const fires = await page.evaluate(async () => {
+    type Boot = { frame: { t: number } };
+    const boot = (window as unknown as { __loop: Boot }).__loop;
+    const stage = document.getElementById('stage')!;
+    const seen: Array<{ n: string; t: number }> = [];
+    let last = '0';
+    return await new Promise<Array<{ n: string; t: number }>>((resolve) => {
+      const poll = () => {
+        const n = stage.dataset.ghostFires ?? '0';
+        if (n !== last) {
+          last = n;
+          seen.push({ n, t: boot.frame.t });
+        }
+        if (boot.frame.t >= 24_000) return resolve(seen);
+        requestAnimationFrame(poll);
+      };
+      poll();
+    });
+  });
+  expect(fires.map((f) => f.n)).toEqual(['1', '2']);
+  // shown at 6 s, fires ~1 s later (a quarter turn ahead of the head); again at 14 s
+  expect(fires[0]!.t).toBeGreaterThan(6000);
+  expect(fires[0]!.t).toBeLessThan(8000);
+  expect(fires[1]!.t).toBeGreaterThan(14_000);
+  expect(fires[1]!.t).toBeLessThan(16_000);
+  await expect(page.locator('#stage')).toHaveAttribute('data-ghost', 'done');
+  await expect(page.locator('#stage')).toHaveAttribute('data-node-count', '0'); // a ghost is never a node
 });
 
 test(`${SLUG}: any real input cancels the ghost demo for good`, async ({ page }) => {
@@ -235,7 +265,10 @@ test(`${SLUG}: any real input cancels the ghost demo for good`, async ({ page })
   await page.locator('#stage').focus();
   await page.keyboard.press('Space');
   await expect(page.locator('#stage')).toHaveAttribute('data-ghost', 'off');
-  await page.waitForTimeout(8500);
+  // past both the 6 s slot and its ~1 s fire, in clock time
+  await page.waitForFunction(() => (window as unknown as { __loop: { frame: { t: number } } }).__loop.frame.t >= 9000, null, {
+    timeout: 30_000,
+  });
   await expect(page.locator('#stage')).toHaveAttribute('data-ghost-fires', '0');
 });
 
@@ -260,7 +293,11 @@ test(`${SLUG}: a flick past 1.45 R removes a node; the 25th tap is refused witho
   await page.goto('/');
   await page.waitForSelector('html[data-ring-live]');
   const g = await ringGeometry(page);
-  const a = 0.25 * Math.PI * 2; // 3 o'clock
+  // flick along the viewport's long axis so 1.7 R stays on screen: 3 o'clock in
+  // landscape, 12 o'clock in portrait
+  const vp = page.viewportSize()!;
+  const turn = vp.width > vp.height ? 0.25 : 0;
+  const a = turn * Math.PI * 2;
   const x = g.cx + g.r * Math.sin(a);
   const y = g.cy - g.r * Math.cos(a);
   await page.mouse.click(x, y);
@@ -268,7 +305,7 @@ test(`${SLUG}: a flick past 1.45 R removes a node; the 25th tap is refused witho
 
   await page.mouse.move(x, y);
   await page.mouse.down();
-  await page.mouse.move(g.cx + g.r * 1.7, y, { steps: 3 });
+  await page.mouse.move(g.cx + g.r * 1.7 * Math.sin(a), g.cy - g.r * 1.7 * Math.cos(a), { steps: 3 });
   await page.mouse.up();
   await expect(page.locator('#stage')).toHaveAttribute('data-node-count', '0');
 
