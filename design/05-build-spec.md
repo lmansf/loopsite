@@ -76,7 +76,7 @@ Times are from first paint. Everything below is a requirement, not a mood board.
   frame — it never animates smoothly first and then corrects.
 - The pointer (desktop) leaves a short comet trail from the first `pointermove`, handled by
   the inline bootstrap.
-- **At 1.8 s**, one line of type fades in beneath the ring (CSS animation, `--dur-6`,
+- **At 0.3 s** (integration ruling, was 1.8 s: the h1 is the LCP element, and a 1.8 s delay put LCP at 2.2 s), one line of type fades in beneath the ring (CSS animation, `--dur-6`,
   `--ease-enter`): `tap the ring`. It is present in the initial HTML from byte zero; only its
   opacity is animated, so it costs no CLS and is readable by assistive tech immediately.
 - No logo. No nav. No modal. No cookie bar. No audio. No spinner. No skeleton.
@@ -139,7 +139,7 @@ Times are from first paint. Everything below is a requirement, not a mood board.
 | # | When | Text |
 |---|---|---|
 | 1 | 0.0 s | *(nothing — only the ring)* |
-| 2 | 1.8 s, dies on first touch | `tap the ring` |
+| 2 | 0.3 s, dies on first touch | `tap the ring` |
 | 3 | after the first node fires | `again` |
 | 4 | after the third node | `now it's yours` |
 | 5 | as the Ringway fades in | `there are twelve of these` |
@@ -1108,7 +1108,7 @@ p { text-wrap:pretty; }
   top:calc(var(--ring-cy) + var(--ring-r) + 28px);
   font-size:var(--text-lead); line-height:1.3; letter-spacing:var(--ls-h2);
   color:var(--c-text); text-align:center; max-width:var(--measure-display);
-  opacity:0; animation:caption-in var(--dur-6) var(--ease-enter) 1800ms both; }
+  opacity:0; animation:caption-in var(--dur-6) var(--ease-enter) 300ms both; }
 #loop-title .echo { display:block; color:var(--c-text-muted); font-size:var(--text-sm); }
 @keyframes caption-in { from{opacity:0} to{opacity:1} }
 [data-stage-state="engaged"] #loop-title { opacity:0; transition:opacity var(--dur-5) var(--ease-exit); }
@@ -1869,7 +1869,7 @@ that is not in this inventory.** Adding one requires an edit to this section.
 
 | When | Text |
 |---|---|
-| in the initial HTML, visible from 1.8 s | `tap the ring` |
+| in the initial HTML, visible from 0.3 s | `tap the ring` |
 | second line of the same `<h1>` | `it comes back` |
 | after the first node fires | `again` |
 | after the third node | `now it's yours` |

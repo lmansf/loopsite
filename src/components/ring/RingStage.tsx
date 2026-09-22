@@ -534,7 +534,21 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
 
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, ringCanvas!.width, ringCanvas!.height);
+      if (dissolves.length > 0) {
+        // a flicked node dissolves wherever it was released: clear everything
+        ctx.clearRect(0, 0, ringCanvas!.width, ringCanvas!.height);
+      } else {
+        // everything else the ring layer paints sits within 0.6 R + 80 px of the
+        // ring (nodes to 1.294 R, glow to +72 px); clearing only that box is the
+        // cheapest thing a frame can do on a tall phone
+        const m = g.R * 1.6 + 80;
+        const k = g.dpr;
+        const x0 = Math.max(0, Math.floor((g.cx - m) * k));
+        const y0 = Math.max(0, Math.floor((g.cy - m) * k));
+        const x1 = Math.min(ringCanvas!.width, Math.ceil((g.cx + m) * k));
+        const y1 = Math.min(ringCanvas!.height, Math.ceil((g.cy + m) * k));
+        ctx.clearRect(x0, y0, x1 - x0, y1 - y0);
+      }
       ctx.restore();
 
       const headPhase = reduced ? f.phase : mod1(f.phase + offset);
@@ -911,8 +925,11 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
       const dtMs = from ? Math.max(1, last.t - from.t) : 1;
       const speed = from ? Math.hypot(last.x - from.x, last.y - from.y) / dtMs : 0;
       const dist = Math.hypot(x - geometry.cx, y - geometry.cy);
+      // a drag that crossed the flick radius in under half a second is a flick even
+      // when a starved main thread delivered too few samples to measure its speed
+      const wholeMs = samples.length >= 2 ? last.t - samples[0]!.t : Infinity;
 
-      if (dist > FLICK_RADIUS * geometry.R && speed > FLICK_SPEED) {
+      if (dist > FLICK_RADIUS * geometry.R && (speed > FLICK_SPEED || wholeMs < 500)) {
         removeNode(id);
         dissolves.push({ x, y, age: 0 });
         swells.delete(id);

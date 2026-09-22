@@ -142,6 +142,8 @@ test('there is no spinner, skeleton, modal or dialog in the first viewport', asy
 
 test('the sweep advances: a placed node fires within one revolution', async ({ page }) => {
   await page.goto('/');
+  // Space is a hydrated key (the bootstrap replays taps, not keys); the pre-hydration gate is its own test above
+  await page.waitForSelector('html[data-ring-live]');
   await page.locator('#stage').focus();
   await page.keyboard.press('Space');
   // The caption changes to `again` on the first fire (§I.1).

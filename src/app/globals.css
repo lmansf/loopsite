@@ -198,7 +198,7 @@ p { text-wrap:pretty; }
   top:calc(var(--ring-cy) + var(--ring-r) + 28px);
   font-size:var(--text-lead); line-height:1.3; letter-spacing:var(--ls-h2);
   color:var(--c-text); text-align:center; max-width:var(--measure-display);
-  opacity:0; animation:caption-in var(--dur-6) var(--ease-enter) 1800ms both; }
+  opacity:0; animation:caption-in var(--dur-6) var(--ease-enter) 300ms both; }
 #loop-title .echo { display:block; color:var(--c-text-muted); font-size:var(--text-sm); }
 @keyframes caption-in { from{opacity:0} to{opacity:1} }
 [data-stage-state="engaged"] #loop-title { opacity:0; transition:opacity var(--dur-5) var(--ease-exit); }

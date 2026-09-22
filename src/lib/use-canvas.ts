@@ -21,7 +21,13 @@ const RESIZE_DEBOUNCE_MS = 100;
 
 export function dprFor(w: number, h: number, heavy = false): number {
   const raw = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-  let dpr = Math.min(raw, heavy ? 1.5 : 2);
+  // Touch devices get 1.5: the ring is stroke art, and a phone's GPU-less
+  // worst case (software raster) pays for every backing-store pixel per frame.
+  const coarse =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches;
+  let dpr = Math.min(raw, heavy || coarse ? 1.5 : 2);
   if (w > 0 && h > 0) {
     const budget = Math.sqrt(MAX_BACKING_PX / (w * h));
     if (budget < dpr) dpr = Math.max(1, budget);

@@ -264,3 +264,8 @@ now ignores the Pages-Router runtime files webpack emits (`framework-*`,
 `main-*`, `polyfills-*`, `webpack-*`) and any chunk referenced by a prerendered
 page when it applies the room ceiling. `next dev` still uses Turbopack, which is
 fine for development.
+
+**The hero title fades in at 300 ms, not 1.8 s.** `#loop-title` is the page's LCP
+element (the largest text block); with the 1.8 s beat Lighthouse measured LCP at
+2.2 s against the 1.8 s gate, and doc 01's first mandate is that the eight-word
+answer to "what is this?" is visible at once. The beat is now 300 ms.

@@ -254,7 +254,8 @@ test(`${SLUG}: the ghost demo fires at 6 s and 14 s, exactly twice, then never`,
   expect(fires[0]!.t).toBeGreaterThan(6000);
   expect(fires[0]!.t).toBeLessThan(8000);
   expect(fires[1]!.t).toBeGreaterThan(14_000);
-  expect(fires[1]!.t).toBeLessThan(16_000);
+  // placed 120° from the first (§B), so the head reaches it up to one revolution later
+  expect(fires[1]!.t).toBeLessThan(18_100);
   await expect(page.locator('#stage')).toHaveAttribute('data-ghost', 'done');
   await expect(page.locator('#stage')).toHaveAttribute('data-node-count', '0'); // a ghost is never a node
 });
