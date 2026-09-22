@@ -11,7 +11,15 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { test, expect, LANDING, ACCOUNT_SLUGS, watchLayoutShift, type Page } from './fixtures';
+import {
+  test,
+  expect,
+  LANDING,
+  ACCOUNT_SLUGS,
+  seedState,
+  watchLayoutShift,
+  type Page,
+} from './fixtures';
 import { ASIDE_BYTES, encodePayload } from '../src/lib/share';
 import { ASIDES, ASIDE_BIT } from '../src/lib/knowledge';
 
@@ -234,4 +242,36 @@ test('the beacon refuses to send under Do Not Track', async ({ page }) => {
   await page.waitForTimeout(600);
   expect(wire.events, 'nothing is sent under GPC / DNT (§C.14)').toEqual([]);
   expect(await page.context().cookies()).toEqual([]);
+});
+
+/* ---------------------------------------------------------- the fixture */
+
+test('a seeded state is seeded once, and the session survives a reload', async ({ page }) => {
+  // The guard on `seedState`: if the seed re-applied on every document it
+  // would wipe whatever the session wrote, and every persistence assertion in
+  // every package would pass or fail for the wrong reason.
+  await seedState(page, { keys: [], visited: [] });
+  await page.goto('/?s=dog');
+  await expect(page.locator('#section-dog')).toBeVisible();
+  await page.locator('#section-dog details.aside:not([open]) > summary').first().click();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => (JSON.parse(window.localStorage.getItem('loop:v2') ?? '{}').keys ?? []).length,
+        ),
+      { timeout: 5000 },
+    )
+    .toBeGreaterThan(0);
+  const before = await page.evaluate(
+    () => JSON.parse(window.localStorage.getItem('loop:v2') ?? '{}').keys as string[],
+  );
+
+  await page.reload();
+  await expect(page.locator('#section-dog')).toBeVisible();
+  await page.waitForTimeout(600);
+  const after = await page.evaluate(
+    () => JSON.parse(window.localStorage.getItem('loop:v2') ?? '{}').keys as string[],
+  );
+  expect(after, 'the seed must not re-apply on reload').toEqual(before);
 });

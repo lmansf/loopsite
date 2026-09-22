@@ -71,13 +71,34 @@ export async function activeAccount(page: Page): Promise<string | null> {
   return page.evaluate(() => document.documentElement.getAttribute('data-s'));
 }
 
-/** Seed `loop:v2` before the first script runs. */
+/**
+ * Seed `loop:v2` before the first script runs — **once per tab, not once per
+ * navigation.**
+ *
+ * `addInitScript` runs on every document, so the obvious version of this
+ * re-applies the seed on every `goto` and every `reload` and silently wipes
+ * whatever the session wrote in between. Any spec asserting that something
+ * survives a reload — a key, a belief, a merged share link — would then pass
+ * or fail for the wrong reason. (Found by WP-B; every package inherits this
+ * helper, so it is fixed here rather than worked around locally.)
+ *
+ * The one-shot guard is `window.name`, which survives same-origin navigation
+ * and reload inside a tab and is the only such thing on the page that is not
+ * storage: a sentinel in `localStorage` would add a second key beside
+ * `loop:v2`, and a sentinel in `sessionStorage` would break §C.12's
+ * "`sessionStorage` holds exactly one key". The site never reads it.
+ *
+ * Seed BEFORE the first navigation. To start a test from a different state,
+ * use a fresh context.
+ */
 export async function seedState(
   page: Page,
   state: Record<string, unknown>,
 ): Promise<void> {
   await page.addInitScript((s) => {
     try {
+      if (window.name === 'loop-seeded') return;
+      window.name = 'loop-seeded';
       window.localStorage.setItem('loop:v2', JSON.stringify(s));
     } catch {
       /* a test that cannot seed is a test that checks the empty case */
