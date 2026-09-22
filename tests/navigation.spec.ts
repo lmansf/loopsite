@@ -43,36 +43,51 @@ test('every slot carries one of exactly three states, and navigates to itself', 
 });
 
 /**
- * §C.7, §F.4: never colour alone. Every colour in the document is flattened to
- * one value first, so the only thing left that can tell the three states apart
- * is their SHAPE — a fill that is there or not, and a bar that exists or does
- * not. If this passes with every colour identical, a reader who cannot see
- * hue has the same navigation everybody else does.
+ * §C.7, §F.4: never colour alone. The document is rendered in GREYSCALE and
+ * the same slot is photographed in each of the three states with its label
+ * hidden, so the only thing in the frame is the mark. If two of those three
+ * pictures came out identical, the difference between them was hue and a
+ * reader who cannot see hue has no navigation.
  */
-test('the three states are told apart with every colour flattened', async ({ page }) => {
+test('the three states survive greyscale', async ({ page }) => {
+  await page.goto('/');
+  await page.addStyleTag({
+    content: `html { filter: grayscale(1) !important; }
+              .night .label, .night .gap { visibility: hidden !important; }`,
+  });
+  const slot = page.locator('#section-dog .night > a[data-slug="river"]');
+  const shots: Record<string, string> = {};
+  for (const state of ['unread', 'read', 'changed'] as const) {
+    await slot.evaluate((el, s) => {
+      (el as HTMLElement).dataset.state = s;
+    }, state);
+    shots[state] = (await slot.screenshot()).toString('base64');
+  }
+  expect(
+    new Set(Object.values(shots)).size,
+    'two of unread / read / changed are the same picture in greyscale',
+  ).toBe(3);
+});
+
+/** And the shapes are the ones §C.7 names: a fill, and a second bar. */
+test('read is a fill and changed is a second bar', async ({ page }) => {
   await page.goto('/');
   const shapes = await page.evaluate(() => {
-    const style = document.createElement('style');
-    style.textContent = `*, *::before, *::after {
-      color: #888 !important; background-color: #888 !important;
-      border-color: #888 !important; outline-color: #888 !important;
-    }`;
-    document.head.appendChild(style);
-    const slots = [...document.querySelectorAll<HTMLElement>('#section-dog .night > a')];
+    const a = document.querySelector<HTMLElement>('#section-dog .night > a');
+    const mark = a?.querySelector('.mark') as HTMLElement;
     const read = (state: string) => {
-      const a = slots[0] as HTMLElement;
-      a.dataset.state = state;
-      const mark = a.querySelector('.mark') as HTMLElement;
+      (a as HTMLElement).dataset.state = state;
       const m = getComputedStyle(mark);
       const bar = getComputedStyle(mark, '::after');
+      const alpha = /rgba?\(([^)]+)\)/.exec(m.backgroundColor);
+      const parts = (alpha?.[1] ?? '0,0,0,0').split(',').map((n) => parseFloat(n));
       return {
-        filled: m.backgroundColor !== 'rgba(0, 0, 0, 0)' && m.backgroundColor !== 'transparent',
+        filled: (parts[3] ?? 1) > 0,
         bar: bar.content !== 'none' && parseFloat(bar.height || '0') > 0,
       };
     };
     return { unread: read('unread'), read: read('read'), changed: read('changed') };
   });
-
   expect(shapes.unread, 'unread is a hollow ring').toEqual({ filled: false, bar: false });
   expect(shapes.read, 'read is a solid mark').toEqual({ filled: true, bar: false });
   expect(shapes.changed, 'changed is a solid mark AND a second bar').toEqual({
@@ -84,15 +99,13 @@ test('the three states are told apart with every colour flattened', async ({ pag
 /** The state has to be in the accessibility tree too, and said ONCE (§C.7). */
 test('a slot says its title and its state exactly once', async ({ page }) => {
   await page.goto('/');
-  const slot = night(page, 'dog').locator('> a[data-slug="dog"]');
-  const name = await slot.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
+  const here = night(page, 'dog').locator('> a[data-slug="dog"]');
   // `.label` and `.gap` are aria-hidden; the u-sr span is the whole name.
-  expect(name).toBe('the dog — read');
-  await expect(slot).toHaveAttribute('aria-current', 'page');
-  const other = night(page, 'dog').locator('> a[data-slug="river"]');
-  expect(
-    await other.evaluate((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim()),
-  ).toBe('the river');
+  await expect(here).toHaveAccessibleName('the dog — read');
+  await expect(here).toHaveAttribute('aria-current', 'page');
+  await expect(night(page, 'dog').locator('> a[data-slug="river"]')).toHaveAccessibleName(
+    'the river',
+  );
 });
 
 /* ------------------------------------------------- geometry at every viewport */
