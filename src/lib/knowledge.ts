@@ -417,21 +417,52 @@ export function setBelief(b: Belief | null): void {
 
 /* ------------------------------------------------------- what is visible */
 
+const NO_KEYS: ReadonlySet<KeyId> = new Set<KeyId>();
+
+/**
+ * **Does this account hold something the reader has not seen?** True iff some
+ * block in it needs a key that is in the current effective set and was NOT in
+ * the set recorded at that account's last entry (§C.6). An account that has
+ * never been entered has no recorded set, so this is simply "a block in it is
+ * unlocked" — which is the first-time reader's case and the one the whole
+ * build is priced on (§A.2, §B: *press a word, and a slot in the navigation
+ * the reader has never visited grows a marker*).
+ *
+ * It is deliberately NOT folded into `accountState`. `unread`, `read` and
+ * `changed` are the three states of §C.7 and `changed` means *this account
+ * said something else when you were last in it* — a claim that cannot be made
+ * about an account nobody has opened. So the answer to "has it got something
+ * for you" is a separate, orthogonal question, and the night draws it as a
+ * separate mark: the same short bar, over whichever mark the slot already has
+ * (`Runtime.tsx` sets `data-more`; the bar is drawn in `night.css`). Hollow
+ * plus bar is a fourth shape, distinguishable without colour, and it says
+ * exactly what is true — *there is something here* — and nothing about what
+ * the reader has done.
+ */
+export function accountHasMore(id: AccountId, k: Knowledge): boolean {
+  const account = ACCOUNTS.get(id);
+  if (!account) return false;
+  const then = k.entry[id] ?? NO_KEYS;
+  for (const b of account.blocks) {
+    if (!b.needs) continue;
+    if (k.effective.has(b.needs) && !then.has(b.needs)) return true;
+  }
+  return false;
+}
+
 /**
  * An account is *changed* iff it has been visited AND some block in it needs
  * a key that is in the current effective set and was NOT in the set recorded
  * at that account's last entry (§C.6).
+ *
+ * Unchanged in signature and in meaning: `unread` still means the reader has
+ * never opened it, whatever they now hold for it. `accountHasMore` above is
+ * what carries the unvisited half.
  */
 export function accountState(id: AccountId, k: Knowledge): AccountState {
   if (!k.visited.has(id)) return 'unread';
-  const account = ACCOUNTS.get(id);
-  if (!account) return 'read';
-  const then = k.entry[id] ?? new Set<KeyId>();
-  for (const b of account.blocks) {
-    if (!b.needs) continue;
-    if (k.effective.has(b.needs) && !then.has(b.needs)) return 'changed';
-  }
-  return 'read';
+  if (!ACCOUNTS.has(id)) return 'read';
+  return accountHasMore(id, k) ? 'changed' : 'read';
 }
 
 /**

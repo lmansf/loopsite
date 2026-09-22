@@ -38,14 +38,22 @@
   margin-top: var(--sp-3);
   max-width: min(var(--measure-read), 21.5rem);
 }
+@media (max-height: 700px) { .night { margin-top: var(--sp-2); } }
+/* The slot, and why row one went away.
+   It used to be `16px auto`: a reserved row for the `changed` bar above the
+   mark, so the bar could appear without moving anything. The reservation is
+   still there — the bar is absolutely positioned and its 5 px of headroom is
+   now the slot's top padding instead of a grid row, which is 4 px cheaper and
+   still shifts nothing, because padding is not content. Those 4 px, and the
+   4 px the label's tighter leading returns, are what pays for a second line
+   of label at almost no extra height: the slot goes from 44 px to 45. */
 .night > a {
   position: relative;
   display: grid;
-  grid-template-rows: 16px auto;      /* row 1 reserves the changed bar's space */
   align-content: center;
   justify-items: center;
   min-width: 44px; min-height: 44px;
-  padding: var(--sp-1) 2px;
+  padding: 5px 2px 3px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--c-text-muted);
@@ -54,15 +62,23 @@
 }
 /* The label is a TITLE, not a UI label: `--ls-label`'s 0.14 em costs about
    1.7 px a character, which is a quarter of `the streetlight` at this size. It
-   is set as a word, tight, and it is allowed to use the whole track. */
+   is set as a word, tight, and it is allowed to use the whole track.
+
+   **It is never truncated.** The bounce audit found four of twelve ellipsised
+   at 360 px and five at 320 — `the stree…`, `the swi…` — with no hover on a
+   phone to recover them, which is a navigation whose destinations cannot be
+   read. `text-overflow: ellipsis` is gone and the title wraps instead: two
+   lines at 11 px inside the same 44 px box. `balance` breaks it where the
+   title breaks (`the last bus` → `the last / bus`, not `the last b / us`), and
+   `overflow-wrap: anywhere` is the guarantee of last resort, so that a
+   narrower track than any phone has still shows every character. */
 .night .label {
-  font-size: var(--text-xs);
-  line-height: 1.2;
+  font-size: 0.6875rem;
+  line-height: 1.15;
   letter-spacing: 0.01em;
   text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
   max-width: 100%;
 }
 
@@ -117,12 +133,12 @@
 }
 /* changed: a SECOND SHORT BAR above the mark. A shape, not a colour, anchored
    to the mark so it lands correctly in both the phone grid and the desktop
-   rail. Its space is reserved by the slot's 16 px first row, so it appears
+   rail. Its space is reserved by the slot's top padding, so it appears
    without moving anything (§E, CLS 0). */
 .night > a[data-state="changed"] .mark::after {
   content: '';
   position: absolute; left: 50%; transform: translateX(-50%);
-  bottom: calc(100% + 3px);
+  bottom: calc(100% + 3px);   /* the slot's 5 px top padding is its reservation */
   width: 10px; height: 2px; border-radius: 1px;
   background: var(--c-accent-hi);
 }
@@ -222,9 +238,14 @@ html[data-loop-js][data-s="four-seconds"] .ask-bar[data-slug="four-seconds"] { d
    ask card at the foot of each account. */
 html:not([data-loop-js]) .ask-bar[data-slug="dog"] { display: flex; }
 
-/* ---------- short viewports: 200 % zoom, and a phone in landscape ----------
-   At a 320 px-tall layout viewport the bar was 19 % of everything the reader
-   could see. The 44 px target is untouched; only the padding around it goes. */
+/* ---------- short viewports: the shortest phone, 200 % zoom, landscape ------
+   The 44 px target is never touched. Only the padding around it goes, and it
+   goes in two steps. At 568 px the bar was 61 px of 568 and `.blocks` had 91
+   px of reading above it; at 52 px it has 100, which is another line and a
+   half of story on the screen the rubric measures (§H.4 F4). */
+@media (max-height: 700px) {
+  .ask-bar { padding-top: 2px; padding-bottom: max(6px, env(safe-area-inset-bottom)); min-height: 0; }
+}
 @media (max-height: 460px) {
   .ask-bar { padding-top: 2px; padding-bottom: max(4px, env(safe-area-inset-bottom)); min-height: 0; }
 }
@@ -242,8 +263,8 @@ html:not([data-loop-js]) .ask-bar[data-slug="dog"] { display: flex; }
     z-index: var(--z-nav);
   }
   .night > a {
-    grid-template-rows: auto;
     grid-template-columns: 14px 1fr;
+    padding-block: 0;
     justify-items: start; align-items: center;
     gap: var(--sp-2);
     height: 44px;
@@ -252,8 +273,10 @@ html:not([data-loop-js]) .ask-bar[data-slug="dog"] { display: flex; }
   .night .mark { width: 12px; height: 12px; align-self: center; }
   .night .label {
     font-size: var(--text-sm);
+    line-height: 1.2;
     letter-spacing: var(--ls-sm);
     text-align: left;
+    text-wrap: nowrap;
   }
   .night .gap {
     left: auto; right: calc(100% + 8px); bottom: auto; top: 50%;

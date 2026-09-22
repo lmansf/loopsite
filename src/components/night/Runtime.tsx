@@ -17,8 +17,10 @@
  *  - account entry — `markEntered`, `data-held` / `data-new` / `aria-hidden`
  *    on the entering account's blocks, and the `html[data-s]` flip, all in ONE
  *    `useLayoutEffect` so it is one paint;
- *  - the night's `data-state` attributes, `aria-current`, the hub and the
- *    live region;
+ *  - `data-held` on the pressable words themselves, from stored keys, so the
+ *    solid rule of §C.2 is permanent across sessions and not just within one;
+ *  - the night's `data-state` and `data-more` attributes, `aria-current`, the
+ *    hub and the live region;
  *  - the belief attribute.
  *
  * **Nothing in the account being read ever changes.** A key granted here
@@ -46,6 +48,7 @@ import { ACCOUNT_IDS } from '@/content/schema';
 import {
   ACCOUNTS,
   CONTRADICTIONS,
+  accountHasMore,
   accountState,
   grantKey,
   markEntered,
@@ -57,7 +60,7 @@ import {
 import { flushState } from '@/lib/storage';
 import { beacon, initBeacon } from '@/lib/beacon';
 import { useUrlState } from '@/lib/url-state';
-import type { Knowledge } from '@/lib/types';
+import type { AccountState, Knowledge } from '@/lib/types';
 
 const ACCOUNT_SET = new Set<string>(ACCOUNT_IDS);
 const VIEWED_MS = 1000;
@@ -75,24 +78,63 @@ function titleOf(slug: string): string {
   return el?.textContent?.trim() ?? slug;
 }
 
-/** The night, the hub and the ask bar, repainted from a knowledge snapshot. */
+/**
+ * The suffix a slot says in the accessibility tree — all three of them are
+ * §C.13 strings and no other word may be used.
+ *
+ *   read             the reader has been here and it says what it said
+ *   it says more now the reader has been here and it has since gained a block
+ *   changed          the reader has NEVER been here and it has gained a block
+ *
+ * The third is the first-time reader's case (§A.2). `changed` is the honest
+ * word for it: something happened to that account, and unlike `read` and
+ * `it says more now` it claims nothing about what the reader has done or
+ * heard. A slot that is merely unread still says only its title.
+ */
+function slotName(title: string, state: AccountState, more: boolean): string {
+  if (state === 'changed') return `${title} — it says more now`;
+  if (state === 'read') return `${title} — read`;
+  if (more) return `${title} — changed`;
+  return title;
+}
+
+/**
+ * The night, the hub and the ask bar, repainted from a knowledge snapshot.
+ *
+ * Two attributes, because they answer two different questions and the second
+ * one is true of accounts the first one cannot describe (§C.7, and
+ * `accountHasMore` in `@/lib/knowledge`):
+ *
+ *   data-state  unread | read | changed — where the READER has been
+ *   data-more   present iff this account holds a block the reader has unlocked
+ *               and not yet seen, whether or not they have ever opened it
+ *
+ * `changed` implies `data-more`, so the bar `night.css` draws is the same
+ * bar, on whichever mark the slot already has: hollow-plus-bar is the
+ * unvisited case, filled-plus-bar the visited one — a fourth shape, and no
+ * new colour. Nothing moves: the bar is absolutely positioned into headroom
+ * the slot already reserves above its mark, so it appears without costing a
+ * pixel of layout, which is why this is safe to do live (§C.3, §E CLS 0).
+ */
 function paintNight(k: Knowledge, active: string): void {
   for (const slot of document.querySelectorAll<HTMLAnchorElement>('.night > a')) {
     const slug = slot.dataset.slug;
     if (!slug || !ACCOUNT_SET.has(slug)) continue;
     const state = accountState(slug as AccountId, k);
+    const more = accountHasMore(slug as AccountId, k);
     if (slot.dataset.state !== state) slot.dataset.state = state;
+    if (more) {
+      if (slot.dataset.more !== 'true') slot.dataset.more = 'true';
+    } else if ('more' in slot.dataset) {
+      delete slot.dataset.more;
+    }
     if (slug === active) slot.setAttribute('aria-current', 'page');
     else slot.removeAttribute('aria-current');
     const sr = slot.querySelector('[data-slot-state]');
     if (sr) {
       const title = slot.querySelector('.label')?.textContent ?? slug;
-      sr.textContent =
-        state === 'changed'
-          ? `${title} — it says more now`
-          : state === 'read'
-            ? `${title} — read`
-            : title;
+      const name = slotName(title, state, more);
+      if (sr.textContent !== name) sr.textContent = name;
     }
   }
 }
@@ -182,6 +224,65 @@ function unveil(el: HTMLElement): void {
 }
 
 /**
+ * The solid rule under every word the reader has ever opened (§C.2, §C.8).
+ *
+ * `data-held` used to be written only inside `onToggle`, so a key earned in an
+ * earlier session came back as an unpressed word: the one progress set the
+ * spec calls permanent — *the page literally gets more solid as the reader
+ * works* — reset on every reload. It is painted here from stored state
+ * instead, for the whole document rather than one account, because a word is
+ * held wherever it appears and this costs one pass over 43 elements.
+ *
+ * Before first paint the same rule is drawn by `boot.ts`, which emits a
+ * `text-decoration-style: solid` rule per held key into `#loop-keys` — the
+ * reader with stored keys sees their words solid in the FIRST painted frame,
+ * with nothing but the inline bootstrap. This pass makes the attribute true
+ * as well, which is what lets the entry effect drop `#loop-keys` without
+ * anything changing on screen.
+ *
+ * It touches `details.aside`, never `.blk`, so it materialises nothing and
+ * moves nothing: `text-decoration-style` is not a layout property.
+ */
+function paintHeld(k: Knowledge): void {
+  for (const el of document.querySelectorAll<HTMLElement>('details.aside[data-key]')) {
+    const key = el.dataset.key;
+    if (!key) continue;
+    if (k.keys.has(key)) {
+      if (el.dataset.held !== 'true') el.dataset.held = 'true';
+    } else if ('held' in el.dataset) {
+      delete el.dataset.held;
+    }
+  }
+}
+
+/**
+ * §C.4: *the one aside carrying `open: true` is granted at boot, in the
+ * account that owns it, on first arrival.* It was not, so the endowment §C.8
+ * calls genuine — "one of ~forty words held before the reader has done
+ * anything" — was false, and the one worked example on the first screen
+ * rendered solid while being unheld, teaching the wrong mapping.
+ *
+ * It is read off the document rather than named here, because the corpus does
+ * not reach this module (§E item 3) and the word that arrives open is the
+ * writer's choice, not the engine's. It is granted only in the account being
+ * entered, so a reader who deep-links into `road` is not handed a key from an
+ * account they have not opened; they get it when they arrive at the account
+ * that carries it. Idempotent, so entering twice grants once.
+ *
+ * Safe to call before `markEntered`, and it must be: the mask then records it
+ * and the account does not falsely read `changed` at its own first entry.
+ * Nothing materialises from it either, because `auditCorpus` (§C.4, law 4)
+ * forbids any account to lock a block behind a key it emits itself.
+ */
+function grantEndowedKey(slug: string): void {
+  const open = document.querySelector<HTMLElement>(
+    `#section-${CSS.escape(slug)} details.aside[open][data-key]`,
+  );
+  const key = open?.dataset.key;
+  if (key) grantKey(key);
+}
+
+/**
  * Entry (§C.6). The key set that lays this account out is captured HERE and
  * is not consulted again until the next entry, so no block ever appears while
  * the reader is looking at it.
@@ -228,6 +329,11 @@ export function Runtime() {
     const wasFirst = firstEntry.current;
     firstEntry.current = false;
 
+    // The word that arrives already open is a key the reader holds, from the
+    // first frame they hold anything (§C.4). Before `markEntered`, so this
+    // account's own mask records it.
+    grantEndowedKey(slug);
+
     // The mask recorded at this account's LAST entry, read BEFORE markEntered
     // rewrites it. The difference is what gets `data-new` for one entry.
     const previous = new Set<KeyId>(readKnowledge().entry[slug] ?? []);
@@ -235,6 +341,9 @@ export function Runtime() {
     const k = readKnowledge();
 
     materialise(slug, k, previous);
+    // Every word the reader has ever opened, solid again — the same rule
+    // `#loop-keys` is already drawing, now as an attribute, in this paint.
+    paintHeld(k);
     document.documentElement.dataset.s = slug;
     paintNight(k, slug);
     paintHub(k, false);
@@ -285,6 +394,9 @@ export function Runtime() {
       // The rule under the word goes solid here and stays solid for the rest
       // of the reader's life with the site, open or closed (§C.2).
       el.dataset.held = 'true';
+      // What the night said one instant before the press, so the reaction can
+      // be the DIFFERENCE and never the whole standing state.
+      const before = readKnowledge();
       noteOpen(key);
       const delta = grantKey(key);
       const k = readKnowledge();
@@ -299,7 +411,20 @@ export function Runtime() {
       // One announcement for the whole tick (§C.3.3): the accounts that now
       // say more, and — because the Ember tick is otherwise seen and not
       // heard — the hub's own `n/5`, which is a §C.13 string.
-      const said = delta.changed.map((id) => `${titleOf(id)} — it says more now`);
+      //
+      // Every account whose answer to "has it got something for you" changed
+      // in this press, not only the visited ones. On a cold profile the
+      // reader has visited exactly one account, so the visited-only version
+      // of this list was empty and the first press of the first word — the
+      // ten seconds the whole build is priced on (§A.2) — said and showed
+      // nothing anywhere. Each one is named with the §C.13 string that is
+      // true of it: `it says more now` where the reader has been, `changed`
+      // where they have not.
+      const said: string[] = [];
+      for (const id of ACCOUNT_IDS) {
+        if (!accountHasMore(id, k) || accountHasMore(id, before)) continue;
+        said.push(slotName(titleOf(id), accountState(id, k), true));
+      }
       if (delta.contradictions.length > 0) {
         said.push(`${k.contradictions.size}/${CONTRADICTIONS.length}`);
       }

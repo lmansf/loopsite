@@ -21,10 +21,28 @@
  *   <style id="loop-keys">  one `display:block!important` rule per held key,
  *                           for the ENTRY account only — which is what makes
  *                           the entry-time materialisation rule (§C.6) true
- *                           on a cold load.
+ *                           on a cold load; AND one solid-rule declaration per
+ *                           held key for the pressable words themselves, for
+ *                           the whole document.
  *
- * `!important` because the stylesheet's position relative to this injected
- * `<style>` is not guaranteed by the framework.
+ * The solid rule is the second half of §C.2 and §C.8: *dotted = unpressed,
+ * solid = held, permanently. The page literally gets more solid as the reader
+ * works.* The attribute that carries it, `data-held`, cannot be set from
+ * here — this script runs in `<head>`, before a single `<details>` has been
+ * parsed — so what boot writes is the declaration, keyed on the `data-key`
+ * the server already put in the markup. A returning reader therefore sees
+ * every word they have ever opened already solid in the FIRST PAINTED FRAME,
+ * with no JavaScript beyond this one inline script. The runtime sets the
+ * attributes at hydration and drops `#loop-keys`; the computed result is
+ * identical, so again nothing flashes.
+ *
+ * It needs no `!important`: `html[data-loop-js] .aside[data-key="…"]>summary`
+ * outranks `read.css`'s `.aside[data-held]>summary`, and both declare the
+ * same value, so stylesheet order cannot matter.
+ *
+ * The display rule keeps its `!important`, because the stylesheet's position
+ * relative to this injected `<style>` is not guaranteed by the framework and
+ * `display:none` on the same element is what it has to beat.
  *
  * The runtime adopts all of it at hydration and then removes `#loop-keys`;
  * the computed result is identical, so nothing flashes.
@@ -52,8 +70,8 @@ if(S.indexOf(' '+s+' ')<0)s='${LANDING}';
 h.setAttribute('data-s',s);
 var b=g('b');if(b!=='valley'&&b!=='hill')b=st.belief===1?'valley':st.belief===2?'hill':'';
 h.setAttribute('data-belief',b||'none');
-var k=st.keys,c='',i;
-if(k&&k.length)for(i=0;i<k.length;i++){if(/^[a-z0-9-]{1,48}$/.test(k[i]))c+='html[data-loop-js] #section-'+s+' .blk[data-needs="'+k[i]+'"]{display:block!important}'}
+var k=st.keys,c='',i,x,P='html[data-loop-js] ';
+if(k&&k.length)for(i=0;i<k.length;i++){x=k[i];if(/^[a-z0-9-]{1,48}$/.test(x))c+=P+'#section-'+s+' .blk[data-needs="'+x+'"]{display:block!important}'+P+'.aside[data-key="'+x+'"]>summary{text-decoration-style:solid}'}
 if(c){var e=d.createElement('style');e.id='loop-keys';e.textContent=c;d.head.appendChild(e)}
 }catch(e){}})();`;
 

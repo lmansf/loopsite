@@ -226,7 +226,11 @@ p { text-wrap:pretty; }
    on a 568 px phone every pixel above the first paragraph is a pixel of the
    story the reader does not arrive in. */
 #main { position:relative; z-index:var(--z-read); padding:var(--sp-5) var(--gutter) 0; }
-@media (max-height:620px) { #main { padding-top:var(--sp-4); } }
+/* The shortest common phone is 568 px tall and the bounce audit found the
+   first block starting at y 416 of it: a headline, a navigation grid and one
+   line of story. Every step down here is a line of prose the reader arrives
+   in rather than scrolls to, and none of them is a size a reader notices. */
+@media (max-height:700px) { #main { padding-top:var(--sp-2); } }
 @media (min-width:900px)  { #main { padding-top:var(--sp-6); } }
 
 /* The premise. Two lines, the LCP element, PAINTED (not faded from zero) in
@@ -238,6 +242,12 @@ p { text-wrap:pretty; }
   margin:0 auto var(--sp-5); text-wrap:balance; opacity:1;
 }
 #loop-title .line { display:block; }
+/* The premise sets in two lines in Roboto and SF and in three or four in the
+   widest system sans. Its SIZE is read.css's (WP-A) — `#main > #loop-title` is
+   the more specific selector — but its LEADING is here, and on a short phone
+   1.18 of a 22 px masthead is four lines of air before the story. A masthead
+   is a block of type, not a paragraph; 1.1 still reads as one. */
+@media (max-height:700px) { #loop-title { line-height:1.1; } }
 :root[data-motion="auto"] #loop-title {
   animation:premise-in var(--dur-6) var(--ease-enter) 300ms both;
 }
@@ -253,6 +263,7 @@ p { text-wrap:pretty; }
   font-size:var(--text-sm); line-height:var(--lh-sm); color:var(--c-text-secondary);
   margin-top:var(--sp-2);
 }
+@media (max-height:700px) { .standfirst { margin-top:var(--sp-1); } }
 
 /* ---- the JS layout: one account, no reflow ---- */
 html[data-loop-js] .account { display:none; }
@@ -316,28 +327,19 @@ html[data-loop-js] #section-four-seconds .blk.choice:not([data-held]) { display:
   position:fixed; inset:0; z-index:var(--z-bg);
   width:100%; height:100%;
   pointer-events:none;
-  /* Restraint, enforced by the layer and not trusted to twelve separate
-     files. The mask is the READING COLUMN, cut out of the figure: across the
-     34 rem the prose occupies the figure is held to 42 % of its strength, and
-     it comes up to full only in the rails either side, where there is nothing
-     to read. The stops are absolute, so on a phone — where the column is the
-     whole screen — the full band is off-screen on both sides and the figure
-     is at 42 % everywhere, and on a 1440 the empty left rail is the one place
-     on the site the figure is allowed to be seen properly.
-
-     42 % of the 0.16 the layer draws at is 6.7 % alpha behind a line of
-     prose, inside §C.16's 8 % ceiling. Measured: body text over the brightest
-     thing the layer can put behind it is 14.8 : 1, against the 4.5 : 1 it has
-     to clear and the 17.5 : 1 it has over bare canvas. */
-  --ambient-rail:18rem;
-  -webkit-mask-image:linear-gradient(to right,
-    #000 0, #000 calc(50% - var(--ambient-rail)),
-    rgb(0 0 0 / .42) calc(50% - 15rem), rgb(0 0 0 / .42) calc(50% + 15rem),
-    #000 calc(50% + var(--ambient-rail)), #000 100%);
-          mask-image:linear-gradient(to right,
-    #000 0, #000 calc(50% - var(--ambient-rail)),
-    rgb(0 0 0 / .42) calc(50% - 15rem), rgb(0 0 0 / .42) calc(50% + 15rem),
-    #000 calc(50% + var(--ambient-rail)), #000 100%);
+  /* There is no mask here any more, and that is the point.
+     The mask used to be where the 8 % ceiling of §C.16 was enforced: the
+     layer drew at 0.16 and a left-to-right gradient held the middle of the
+     screen to 42 % of it. Two things were wrong with that. Its stops were
+     absolute — 15 rem — while the reading column is 17 rem, so the last
+     characters of a full line on a wide screen sat over 80 % of the figure,
+     not 42 %; and a mask cannot see that two strokes have crossed, which is
+     how the bounce audit measured 37/255 behind the navigation against a
+     ceiling of 20.
+     The ceiling now lives in `src/figures/Ambient.tsx`, where the finished
+     drawing is multiplied down in one `destination-in` pass: the brightest
+     pixel the layer can produce is `CEILING`, whatever a figure does, and the
+     same pass fades the whole layer to nothing above the night. */
 }
 /* A reader who has asked for less has already said what they want from a
    moving background. The still is still drawn — it is a composition, not an

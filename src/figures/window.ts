@@ -1,45 +1,58 @@
 import type { Figure } from './types';
 
 /**
- * the window — a front room, facing the long way. The still: six panes, and
- * the one that has something in it. The four seconds: the lit pane fades by
- * a few per cent and returns. The frame never moves.
+ * the window — a front room, facing the long way.
+ *
+ * This was the worst of the twelve: a frame, two mullions and a cross-rail,
+ * which is a grid of six boxes drawn directly behind a grid of twelve slots.
+ * There is no frame in it now. What the window's account is actually about is
+ * that it is a mirror until the lights fail and then it is a window — so what
+ * is drawn is the light the room throws OUT: a long skewed parallelogram of it
+ * lying on the ground, going away from the glass, with the sill as one line
+ * above it. Nothing in it is square to the screen.
+ *
+ * The still: the thrown light, and the long way going away from it. The four
+ * seconds: the light in it fades by a few per cent and returns. Nothing moves.
  */
 const win: Figure = {
   draw(ctx, phase, w, h) {
-    const fw = Math.min(w * 0.46, 400);
-    const fh = fw * 0.8;
-    const x = w * 0.5 - fw * 0.5;
-    const y = h * 0.44 - fh * 0.5;
-    const cw = fw / 3;
-    const ch = fh / 2;
+    const sill = h * 0.4;
+    const left = w * 0.16;
+    const right = w * 0.68;
 
-    ctx.strokeRect(x, y, fw, fh);
+    // the sill: the only straight thing, and it is short
     ctx.globalAlpha = 0.6;
-    for (let i = 1; i < 3; i++) {
-      ctx.beginPath();
-      ctx.moveTo(x + cw * i, y);
-      ctx.lineTo(x + cw * i, y + fh);
-      ctx.stroke();
-    }
     ctx.beginPath();
-    ctx.moveTo(x, y + ch);
-    ctx.lineTo(x + fw, y + ch);
+    ctx.moveTo(left - 10, sill);
+    ctx.lineTo(right + 10, sill);
     ctx.stroke();
 
-    // The pane with something in it. A fill, not a stroke, so it is kept to a
-    // fifth: a solid patch behind a line of prose is the one thing the
-    // ambient layer is not allowed to be.
-    ctx.globalAlpha = 0.2 + Math.sin(phase * Math.PI * 2) * 0.07;
-    ctx.fillRect(x + cw * 2 + 4, y + 4, cw - 8, ch - 8);
-
-    // the long way, going away from the glass
-    ctx.globalAlpha = 0.5;
+    // the light the room throws out, lying on the ground and skewed away
+    const far = h * 1.04;
+    const skew = w * 0.3;
+    ctx.globalAlpha = 0.55;
     ctx.beginPath();
-    ctx.moveTo(x + fw * 0.26, y + fh + 26);
-    ctx.lineTo(x + fw * 0.46, y + fh + 26 + fh * 0.42);
-    ctx.moveTo(x + fw * 0.74, y + fh + 26);
-    ctx.lineTo(x + fw * 0.54, y + fh + 26 + fh * 0.42);
+    ctx.moveTo(left, sill + 8);
+    ctx.lineTo(left + skew * 0.6, far);
+    ctx.moveTo(right, sill + 8);
+    ctx.lineTo(right + skew, far);
+    ctx.stroke();
+
+    // the one pane that had something in it, as a patch of that light
+    ctx.globalAlpha = 0.16 + Math.sin(phase * Math.PI * 2) * 0.05;
+    ctx.beginPath();
+    ctx.moveTo(left + (right - left) * 0.56, sill + 10);
+    ctx.lineTo(right - 4, sill + 10);
+    ctx.lineTo(right + skew * 0.72, far);
+    ctx.lineTo(left + (right - left) * 0.56 + skew * 0.62, far);
+    ctx.closePath();
+    ctx.fill();
+
+    // and the mullion that divides it, seen only in the light on the ground
+    ctx.globalAlpha = 0.38;
+    ctx.beginPath();
+    ctx.moveTo(left + (right - left) * 0.34, sill + 8);
+    ctx.lineTo(left + (right - left) * 0.34 + skew * 0.78, far);
     ctx.stroke();
     ctx.globalAlpha = 1;
   },

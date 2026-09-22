@@ -177,6 +177,7 @@ test('a corpus that breaks a law is caught', () => {
 import {
   GATE_KEYS,
   __resetKnowledgeForTest,
+  accountHasMore,
   accountState,
   decodeEntryMask,
   effectiveKeys,
@@ -242,6 +243,58 @@ test('an account read before the key exists says more now, and stops saying it o
 
   markEntered('dog');
   assert.equal(accountState('dog', readKnowledge()), 'read', 'the marker clears on the re-read');
+});
+
+test('an account the reader has never opened still says it has something, and does not say it was read', () => {
+  // §A.2's ten seconds: press a word in the ONE account a first-time reader
+  // has entered, and a slot they have never visited must react. `two-clicks`
+  // is the dog's second word and it is consumed by `lamp` and by `switch`.
+  freshReader();
+  markEntered('dog');
+  for (const id of ACCOUNT_IDS) {
+    assert.equal(accountHasMore(id, readKnowledge()), false, `${id} has nothing yet`);
+  }
+
+  grantKey('two-clicks');
+  const k = readKnowledge();
+
+  const more = ACCOUNT_IDS.filter((id) => accountHasMore(id, k));
+  assert.deepEqual([...more], ['lamp', 'switch'], 'exactly the two consumers, never all twelve');
+  // and the honest half: neither of them claims to have been read
+  for (const id of more) {
+    assert.equal(accountState(id, k), 'unread', `${id} is still unread`);
+  }
+  assert.equal(accountHasMore('dog', k), false, 'the account being read never grows a marker');
+});
+
+test('entering an account clears what it was holding for the reader', () => {
+  freshReader();
+  markEntered('dog');
+  grantKey('two-clicks');
+  assert.equal(accountHasMore('switch', readKnowledge()), true);
+
+  markEntered('switch');
+  const k = readKnowledge();
+  assert.equal(accountHasMore('switch', k), false, 'it has been seen');
+  assert.equal(accountState('switch', k), 'read');
+  // the other one is untouched: the reader has still not been to the lamp
+  assert.equal(accountHasMore('lamp', k), true);
+  assert.equal(accountState('lamp', k), 'unread');
+});
+
+test('changed is exactly visited-and-has-more, so the three states are unchanged', () => {
+  freshReader();
+  markEntered('dog');
+  markEntered('switch');
+  grantKey('one-press');
+  const k = readKnowledge();
+  for (const id of ACCOUNT_IDS) {
+    const expected = !k.visited.has(id) ? 'unread' : accountHasMore(id, k) ? 'changed' : 'read';
+    assert.equal(accountState(id, k), expected, id);
+  }
+  assert.equal(accountState('dog', k), 'changed');
+  assert.equal(accountState('road', k), 'unread', 'road has it too, and is still unread');
+  assert.equal(accountHasMore('road', k), true);
 });
 
 test('the earned block is interleaved at its authored index, not appended', () => {

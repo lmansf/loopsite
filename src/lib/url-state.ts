@@ -6,6 +6,25 @@
  * Spec: design/11-narrative-build-spec.md §C.11. Retained from WP0; only the
  * names it reads changed. FROZEN.
  *
+ * **Authorised change, 2026-09-22 — the architect, in writing, to Fix-1.**
+ * `design/13-bounce-audit-narrative.md` §5 fix 2. The snapshot was `EMPTY`
+ * (section `dog`) until `subscribe()` ran, and `getServerSnapshot` returned
+ * `EMPTY` for the hydration render as well — so the first render of every
+ * arrival handed the runtime's entry effect `dog` before the URL's own slug,
+ * and `/?s=road`, `/s/<slug>` and every inbound share link wrote
+ * `visited: ["dog", …]` and then told the reader `the dog — read` about an
+ * account they had never opened. The snapshot is now read from the URL at
+ * module scope, before React's first render, and the hydration render is
+ * given that same value. **Every exported signature is unchanged**; nothing
+ * outside this file had to move.
+ *
+ * Returning the live URL from `getServerSnapshot` on the client is safe here
+ * and only here: the two components that use this hook — `Runtime` and
+ * `useInboundShare` — render no DOM at all, so there is no markup for the
+ * value to disagree with. A future consumer that renders from `section` must
+ * render it identically to the server or take the slug from `boot.ts`'s
+ * `html[data-s]` instead.
+ *
  * The account lives in the search param (`?s=<slug>`), the belief beside it
  * (`?b=valley|hill`), and a shared state in the hash (`#n=<base64url>`).
  * Passive changes use replaceState, deliberate ones use pushState — so Back
@@ -24,7 +43,12 @@ interface UrlSnapshot {
 
 const EMPTY: UrlSnapshot = { section: DEFAULT_SECTION, belief: null, code: null };
 
-let snapshot: UrlSnapshot = EMPTY;
+/**
+ * Read at module scope, which on the client is **before React's first
+ * render** — the whole point of the fix above. `read()` returns `EMPTY` when
+ * there is no `window`, so the server module stays the constant it was.
+ */
+let snapshot: UrlSnapshot = read();
 let listeners: Array<() => void> = [];
 let wired = false;
 
@@ -61,7 +85,9 @@ function refresh(): void {
 function wire(): void {
   if (wired || typeof window === 'undefined') return;
   wired = true;
-  snapshot = read();
+  // `refresh`, not `snapshot = read()`: it keeps the object identity when the
+  // URL has not moved since module scope, so subscribing forces no re-render.
+  refresh();
   window.addEventListener('popstate', refresh);
   window.addEventListener('hashchange', refresh);
 }
@@ -75,7 +101,14 @@ function subscribe(listener: () => void): () => void {
 }
 
 const getSnapshot = (): UrlSnapshot => snapshot;
-const getServerSnapshot = (): UrlSnapshot => EMPTY;
+/**
+ * React uses this for the server render **and for the hydration render on the
+ * client** — which is the render whose value reached the entry effect first.
+ * On the server there is no URL, so it is the constant; in the browser it is
+ * the URL the reader actually arrived at.
+ */
+const getServerSnapshot = (): UrlSnapshot =>
+  typeof window === 'undefined' ? EMPTY : snapshot;
 
 function writeUrl(
   section: string,
