@@ -114,7 +114,10 @@ export default function Room(props: SectionProps) {
     let prevPhase = first.clock.phase;
     let ringPulse = 0; // reduced motion: the downbeat as a soft alpha lift
 
-    const amp = parseFloat(token('--amp-flash')) || FLASH_AMPLITUDE;
+    // `--amp-flash` is 0.06, and 0 under reduced motion; a missing token falls
+    // back to the spec's 6%.
+    const ampToken = parseFloat(token('--amp-flash'));
+    const amp = Number.isFinite(ampToken) ? Math.min(0.1, ampToken) : FLASH_AMPLITUDE;
 
     const unsubscribe = subscribeFrame(() => {
       const p = propsRef.current;
