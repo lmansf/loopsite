@@ -287,6 +287,8 @@ a.next-arc {
 @media (max-height: 700px) and (max-width: 639px) {
   /* the 320×568 class: a 44 px arc keeps clear of the caption line */
   a.next-arc { height: 44px; min-height: 44px; width: 168px; }
+  /* its offset-path is drawn for the 208×64 arc; on the small arc the dot would sit below it */
+  a.next-arc .traveller { display: none; }
 }
 a.next-arc svg { width: 100%; height: 100%; overflow: visible; }
 a.next-arc .track {
@@ -404,6 +406,24 @@ html[data-loop-js]:has(#stage[data-node-count='0']) footer.loop-footer button[da
 html[data-loop-js]:has(#stage[data-node-count='0']) footer.loop-footer button[data-control='share']:not(:focus-visible) {
   opacity: 0;
   pointer-events: none;
+}
+/* on phones the room's hook line runs beneath this row for its three seconds:
+   the two controls step aside until it is read or dismissed */
+@media (pointer: coarse) {
+  html[data-loop-js]:has(.corridor[data-hook='shown']) footer.loop-footer button[data-control='keep']:not(:focus-visible),
+  html[data-loop-js]:has(.corridor[data-hook='shown']) footer.loop-footer button[data-control='share']:not(:focus-visible) {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+/* taller phones can afford full gaps between the rows */
+@media (min-height: 600px) {
+  footer.loop-footer { row-gap: var(--sp-2); }
+}
+/* the narrowest phones: the room name and the controls share one top strip */
+@media (max-width: 359px) {
+  html[data-loop-js] .room-shell h2 { font-size: var(--text-lead); }
+  footer.loop-footer button { font-size: 0.7rem; padding: 0 var(--sp-1); }
 }
 footer.loop-footer button:hover { color: var(--c-text); }
 footer.loop-footer button:active { transform: scale(var(--amp-scale-press)); }
