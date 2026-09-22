@@ -23,7 +23,6 @@ import { getFrame, subscribeFrame } from '@/lib/clock';
 import { pointAt } from '@/lib/ring-geometry';
 import { markFound, readState } from '@/lib/storage';
 import { rgba } from '@/lib/tokens';
-import { ROOMS } from '@/sections/registry';
 import {
   claim,
   geometryOf,
@@ -37,6 +36,25 @@ import {
 
 const VISITS_NEEDED = 12;
 const CHECK_MS = 1000;
+/**
+ * The twelve, in notch order (§F.5). Listed here rather than imported from the
+ * registry: a lazy chunk that reaches back into the registry pulls the whole
+ * corridor into itself, and the registry into every room.
+ */
+const TWELVE = [
+  'origin',
+  'pulse',
+  'tone',
+  'trail',
+  'swarm',
+  'mirror',
+  'growth',
+  'orbit',
+  'loom',
+  'wear',
+  'garden',
+  'return',
+] as const;
 /** a tap at the centre shorter than this, and steadier than 10 px, toggles the face */
 const TAP_MS = 400;
 const TAP_TOL_PX = 10;
@@ -45,8 +63,8 @@ const CENTRE = 0.25;
 const AFTER_ROOMS = 1000;
 
 export function allVisited(visits: Record<string, number>): boolean {
-  for (const room of ROOMS) {
-    if ((visits[room.id] ?? 0) < VISITS_NEEDED) return false;
+  for (const slug of TWELVE) {
+    if ((visits[slug] ?? 0) < VISITS_NEEDED) return false;
   }
   return true;
 }
