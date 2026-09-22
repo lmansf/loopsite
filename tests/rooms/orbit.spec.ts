@@ -173,7 +173,7 @@ test(`${SLUG}: the visitor's own curve closes — start and end coincide`, async
   const p1 = parsePoint(await root.getAttribute('data-orbit-p1'));
   expect(Number.isFinite(p0[0]) && Number.isFinite(p1[1])).toBe(true);
   expect(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), 'P(1) meets P(0)').toBeLessThan(1e-3);
-  expect(Number(await root.getAttribute('data-orbit-maxR'))).toBeGreaterThan(0);
+  expect(Number(await root.getAttribute('data-orbit-reach'))).toBeGreaterThan(0);
 
   // one harmonic button per term: the keyboard equivalent of the chain
   await expect(page.locator(`${ROOT} ol[aria-label="orbit"] button`)).toHaveCount(7);

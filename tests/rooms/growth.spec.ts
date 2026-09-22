@@ -104,7 +104,9 @@ test(`${SLUG}: the segment cap holds for every arrangement, generation and tier`
         expect(fern.count, 'a generation never has fewer segments than the last').toBeGreaterThanOrEqual(last);
         last = fern.count;
         // every written segment is finite
-        for (let i = 0; i < fern.count * 4; i++) expect(Number.isFinite(fern.segs[i])).toBe(true);
+        let finite = true;
+        for (let i = 0; i < fern.count * 4; i++) if (!Number.isFinite(fern.segs[i])) finite = false;
+        expect(finite).toBe(true);
       }
       // at the cap the fern is genuinely at the cap: the budget is spent
       const atCap = segmentCount(genCap, cap);

@@ -267,7 +267,7 @@ export default function Room(props: SectionProps) {
         root.dataset.orbitGap = gap.toExponential(3);
         root.dataset.orbitP0 = `${samples[0]},${samples[1]}`;
         root.dataset.orbitP1 = `${samples[n * 2]},${samples[n * 2 + 1]}`;
-        root.dataset.orbitMaxR = maxRadius(samples, n, cx, cy).toFixed(1);
+        root.dataset.orbitReach = maxRadius(samples, n, cx, cy).toFixed(1);
       }
     }
 
