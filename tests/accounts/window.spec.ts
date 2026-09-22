@@ -2,23 +2,25 @@
  * tests/accounts/window.spec.ts — one file per account. **OWNED BY WP-C.**
  * Spec: §H.2, last entry.
  *
- * WP-N left the four assertions every account owes: it is in the raw response
- * body, `/?s=window` activates it and only it, its ask control names its own
- * `next`, and it reads from an empty key set. WP-C adds the beacon
- * interception, the figure's still, and this account's own authored behaviour
- * — the contradiction it takes part in, or, for `four-seconds`, that zero
- * keys prints exactly one block and every blank rule is the width of the
- * sentence it hides.
+ * The six things every account owes, and the whole of what this file is for:
+ * it is in the served document, its own URL activates it and only it, the ask
+ * control and the ask card both name what it hands on, it reads from an empty
+ * key set, its slot in the night is where the reader is, and it can be left
+ * and come back to.
  */
 
 import { test, expect, ACCOUNT_SLUGS, activeAccount } from '../fixtures';
 
 const SLUG = 'window';
+const TITLE = "the window";
+const ASK = "ask the switch";
 const NEXT = 'switch';
+const NEXT_TITLE = "the switch";
 
 test('window is in the raw response body', async ({ request }) => {
   const html = await (await request.get('/')).text();
   expect(html).toContain(`id="section-${SLUG}"`);
+  expect(html).toContain(`href="/?s=${SLUG}"`);
 });
 
 test('window activates on its own URL and nothing else does', async ({ page }) => {
@@ -33,15 +35,37 @@ test('window activates on its own URL and nothing else does', async ({ page }) =
 
 test('window names what it hands on', async ({ page }) => {
   await page.goto(`/?s=${SLUG}`);
-  await expect(page.locator('.ask-bar:visible')).toHaveAttribute('href', `/?s=${NEXT}`);
-  await expect(page.locator(`#section-${SLUG} .ask.card`)).toHaveAttribute(
-    'href',
-    `/?s=${NEXT}`,
-  );
+  const bar = page.locator('.ask-bar:visible');
+  await expect(bar.locator('.ask-text')).toHaveAttribute('href', `/?s=${NEXT}`);
+  await expect(bar.locator('.ask-text')).toHaveText(ASK);
+  const card = page.locator(`#section-${SLUG} .ask.card`);
+  await expect(card).toHaveAttribute('href', `/?s=${NEXT}`);
+  await expect(card).toContainText(NEXT_TITLE);
 });
 
 test('window reads from an empty key set', async ({ page }) => {
   await page.goto(`/?s=${SLUG}`);
   const text = await page.locator(`#section-${SLUG} .blocks`).innerText();
   expect(text.trim().length).toBeGreaterThan(60);
+});
+
+test('window is where the reader is, in its own night', async ({ page }) => {
+  await page.goto(`/?s=${SLUG}`);
+  const night = page.locator(`#section-${SLUG} .night`);
+  await expect(night.locator('> a')).toHaveCount(ACCOUNT_SLUGS.length);
+  const here = night.locator(`> a[data-slug="${SLUG}"]`);
+  await expect(here).toHaveAttribute('aria-current', 'page');
+  await expect(here).toHaveAttribute('data-state', 'read');
+  await expect(here).toContainText(TITLE);
+  await expect(night.locator('> a[aria-current="page"]')).toHaveCount(1);
+});
+
+test('window can be left and come back to', async ({ page }) => {
+  await page.goto(`/?s=${SLUG}`);
+  const away = ACCOUNT_SLUGS.find((s) => s !== SLUG) as string;
+  await page.locator(`#section-${SLUG} .night > a[data-slug="${away}"]`).click();
+  await expect(page.locator(`#section-${away}`)).toBeVisible();
+  await page.locator(`#section-${away} .night > a[data-slug="${SLUG}"]`).click();
+  await expect(page.locator(`#section-${SLUG}`)).toBeVisible();
+  expect(await activeAccount(page)).toBe(SLUG);
 });
