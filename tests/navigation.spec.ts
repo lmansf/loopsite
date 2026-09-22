@@ -44,12 +44,26 @@ test('every slot carries one of exactly three states, and navigates to itself', 
 
 /**
  * §C.7, §F.4: never colour alone. The document is rendered in GREYSCALE and
- * the same slot is photographed in each of the three states with its label
- * hidden, so the only thing in the frame is the mark. If two of those three
- * pictures came out identical, the difference between them was hue and a
- * reader who cannot see hue has no navigation.
+ * the same slot is photographed in each appearance the night can take, with
+ * its label hidden, so the only thing in the frame is the mark. If two of
+ * those pictures came out identical, the difference between them was hue and
+ * a reader who cannot see hue has no navigation.
+ *
+ * There are FOUR, not three, since the state package made `data-more`
+ * orthogonal to `data-state`: the fill says where the reader has been and the
+ * bar says an unlocked block is waiting, and an account can have the second
+ * without the first. `hollow + bar` is the first-time reader's case — the one
+ * the bounce audit found could never appear on screen (§C1) — and it has to be
+ * tellable from `hollow` and from `solid + bar` without hue.
  */
-test('the three states survive greyscale', async ({ page }) => {
+const APPEARANCES = [
+  { name: 'unread', state: 'unread', more: false },
+  { name: 'unread + more', state: 'unread', more: true },
+  { name: 'read', state: 'read', more: false },
+  { name: 'changed', state: 'changed', more: true },
+] as const;
+
+test('every appearance of the night survives greyscale', async ({ page }) => {
   await page.goto('/');
   await page.addStyleTag({
     content: `html { filter: grayscale(1) !important; }
@@ -57,26 +71,33 @@ test('the three states survive greyscale', async ({ page }) => {
   });
   const slot = page.locator('#section-dog .night > a[data-slug="river"]');
   const shots: Record<string, string> = {};
-  for (const state of ['unread', 'read', 'changed'] as const) {
+  for (const look of APPEARANCES) {
     await slot.evaluate((el, s) => {
-      (el as HTMLElement).dataset.state = s;
-    }, state);
-    shots[state] = (await slot.screenshot()).toString('base64');
+      const a = el as HTMLElement;
+      a.dataset.state = s.state;
+      if (s.more) a.dataset.more = 'true';
+      else delete a.dataset.more;
+    }, look);
+    shots[look.name] = (await slot.screenshot()).toString('base64');
   }
   expect(
     new Set(Object.values(shots)).size,
-    'two of unread / read / changed are the same picture in greyscale',
-  ).toBe(3);
+    `two of ${APPEARANCES.map((a) => a.name).join(' / ')} are the same picture in greyscale`,
+  ).toBe(APPEARANCES.length);
 });
 
 /** And the shapes are the ones §C.7 names: a fill, and a second bar. */
-test('read is a fill and changed is a second bar', async ({ page }) => {
+test('the fill is where the reader has been and the bar is what is waiting', async ({
+  page,
+}) => {
   await page.goto('/');
-  const shapes = await page.evaluate(() => {
+  const shapes = await page.evaluate((looks) => {
     const a = document.querySelector<HTMLElement>('#section-dog .night > a');
     const mark = a?.querySelector('.mark') as HTMLElement;
-    const read = (state: string) => {
+    const read = (state: string, more: boolean) => {
       (a as HTMLElement).dataset.state = state;
+      if (more) (a as HTMLElement).dataset.more = 'true';
+      else delete (a as HTMLElement).dataset.more;
       const m = getComputedStyle(mark);
       const bar = getComputedStyle(mark, '::after');
       const alpha = /rgba?\(([^)]+)\)/.exec(m.backgroundColor);
@@ -86,11 +107,16 @@ test('read is a fill and changed is a second bar', async ({ page }) => {
         bar: bar.content !== 'none' && parseFloat(bar.height || '0') > 0,
       };
     };
-    return { unread: read('unread'), read: read('read'), changed: read('changed') };
-  });
-  expect(shapes.unread, 'unread is a hollow ring').toEqual({ filled: false, bar: false });
-  expect(shapes.read, 'read is a solid mark').toEqual({ filled: true, bar: false });
-  expect(shapes.changed, 'changed is a solid mark AND a second bar').toEqual({
+    return Object.fromEntries(looks.map((l) => [l.name, read(l.state, l.more)]));
+  }, APPEARANCES as unknown as { name: string; state: string; more: boolean }[]);
+
+  expect(shapes['unread'], 'unread is a hollow ring').toEqual({ filled: false, bar: false });
+  expect(
+    shapes['unread + more'],
+    'an account the reader has never opened stays HOLLOW and gains the bar',
+  ).toEqual({ filled: false, bar: true });
+  expect(shapes['read'], 'read is a solid mark').toEqual({ filled: true, bar: false });
+  expect(shapes['changed'], 'changed is a solid mark AND a second bar').toEqual({
     filled: true,
     bar: true,
   });

@@ -137,18 +137,27 @@ test('a word is still pressable and a key still fires', async ({ page }) => {
   await expect(page.locator('#section-dog details.aside[open]').first()).toBeVisible();
 });
 
-test('the night still tells its three states apart with no motion at all', async ({
+test('the night still tells its states apart with no motion at all', async ({
   page,
 }) => {
   await page.goto('/');
-  const bar = await page.evaluate(() => {
+  // Both slots that carry a bar: the visited one, and the one the reader has
+  // never opened, which is the case the bar exists for (§C1). Under reduced
+  // motion neither of them fades in — the bar is simply there (§C.16).
+  const bars = await page.evaluate(() => {
     const a = document.querySelector<HTMLElement>('#section-dog .night > a');
     if (!a) return null;
-    a.dataset.state = 'changed';
     const mark = a.querySelector('.mark') as HTMLElement;
-    const after = getComputedStyle(mark, '::after');
-    return { h: parseFloat(after.height || '0'), animation: after.animationName };
+    const look = (state: string) => {
+      a.dataset.state = state;
+      a.dataset.more = 'true';
+      const after = getComputedStyle(mark, '::after');
+      return { h: parseFloat(after.height || '0'), animation: after.animationName };
+    };
+    return { changed: look('changed'), unvisited: look('unread') };
   });
-  expect(bar?.h, 'the second bar is simply there (§C.16)').toBeGreaterThan(0);
-  expect(bar?.animation, 'and it did not animate in').toBe('none');
+  expect(bars?.changed.h, 'the second bar is simply there (§C.16)').toBeGreaterThan(0);
+  expect(bars?.changed.animation, 'and it did not animate in').toBe('none');
+  expect(bars?.unvisited.h, 'and it is there on an account never opened').toBeGreaterThan(0);
+  expect(bars?.unvisited.animation, 'and that one did not animate in either').toBe('none');
 });
