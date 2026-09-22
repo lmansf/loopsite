@@ -22,8 +22,18 @@ test('zero serious or critical on / @a11y', async ({ page }) => {
   expect(bad.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
 });
 
-test('zero serious or critical on an alias route @a11y', async ({ page }) => {
+test('zero serious or critical on an alias route @a11y', async ({ page, request }) => {
+  // The alias route's whole job is generateMetadata, and it replaceStates to
+  // the canonical route the moment JavaScript runs (§C.11) — so with
+  // JavaScript on, the page axe can actually settle on is the one the reader
+  // lands on. The served document is checked separately, below, which is what
+  // a reader without JavaScript gets.
   await page.goto('/s/moth');
+  await page.waitForURL(/\?s=moth/);
+  await expect(page.locator('#section-moth')).toBeVisible();
+  const raw = await (await request.get('/s/moth')).text();
+  expect(raw).toContain('id="section-moth"');
+  expect(raw).toContain('aria-labelledby="h-moth"');
   const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   const bad = results.violations.filter(
     (v) => v.impact === 'serious' || v.impact === 'critical',

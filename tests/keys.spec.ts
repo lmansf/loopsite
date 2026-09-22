@@ -52,9 +52,12 @@ test('a seeded key materialises its block at its authored position', async ({ pa
 test('a whole navigation shifts nothing', async ({ page }) => {
   const cls = await watchLayoutShift(page);
   await page.goto('/');
-  await page.locator('.night > a[data-slug="lamp"]').first().click();
-  await page.waitForTimeout(300);
-  await page.locator('.night > a[data-slug="river"]').first().click();
+  // every account carries its own night, and only the active one is shown —
+  // so a slot is always addressed through the section it lives in.
+  await page.locator('#section-dog .night > a[data-slug="lamp"]').click();
+  await expect(page.locator('#section-lamp')).toBeVisible();
+  await page.locator('#section-lamp .night > a[data-slug="river"]').click();
+  await expect(page.locator('#section-river')).toBeVisible();
   await page.waitForTimeout(300);
   expect(await cls()).toBe(0);
 });

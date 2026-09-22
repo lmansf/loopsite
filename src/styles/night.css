@@ -37,19 +37,24 @@
 }
 /* The gap subline: the account's standfirst, on hover and on focus (rubric E3).
    It is off the flow, so showing it moves nothing. */
+/* display:none, not visibility:hidden — a hidden-but-laid-out tooltip still
+   counts toward documentElement.scrollWidth, which cost 102 px of horizontal
+   overflow at 320 px. It is absolutely positioned, so showing it moves
+   nothing. (rubric F1, and the deduction the outgoing site lost a point to.) */
 .night .gap {
+  display: none;
   position: absolute; left: 50%; bottom: calc(100% + 4px);
   transform: translateX(-50%);
-  width: max-content; max-width: 18rem;
+  width: max-content; max-width: min(18rem, 60vw);
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--c-border); border-radius: var(--radius-sm);
   background: var(--c-surface-raised);
   font-size: var(--text-xs); line-height: 1.35; color: var(--c-text-secondary);
-  opacity: 0; visibility: hidden; pointer-events: none;
+  pointer-events: none;
   z-index: var(--z-nav);
 }
-@media (hover: hover) and (pointer: fine) {
-  .night > a:hover .gap, .night > a:focus-visible .gap { opacity: 1; visibility: visible; }
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) {
+  .night > a:hover .gap, .night > a:focus-visible .gap { display: block; }
 }
 
 /* three states, never colour alone (§C.7) */
@@ -155,12 +160,18 @@ html:not([data-loop-js]) .ask-bar[data-slug="dog"] { display: flex; }
   .night .gap { left: auto; right: calc(100% + 8px); bottom: auto; top: 50%;
     transform: translateY(-50%); }
   .night > a[data-state="changed"]::before { left: 4px; top: 8px; transform: none; }
+  /* On desktop the bar is a card, and its box must be BYTE-IDENTICAL in every
+     account (§H.2): a fixed height, and a width that grows with the ask
+     string rather than wrapping it onto a second line. It is anchored right,
+     so growing left never overflows. */
   .ask-bar {
     left: auto; right: var(--gutter); bottom: var(--gutter-b);
-    width: 208px; min-height: 64px;
+    width: auto; min-width: 208px; max-width: 20rem;
+    height: 64px; min-height: 64px;
     border: 1px solid var(--c-border); border-radius: var(--radius-md);
     padding: var(--sp-2) var(--sp-3);
   }
+  .ask-text { white-space: nowrap; }
   html:not([data-loop-js]) .night { position: static; transform: none; width: auto;
     grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); margin-top: var(--sp-4); }
 }

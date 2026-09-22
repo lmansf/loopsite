@@ -1,21 +1,35 @@
-# Loop
+# the same four seconds
 
-**One ring on a near-black field with a sweep hand already turning when you arrive.
-You tap the ring; a node appears where you touched; four seconds later the sweep
-comes back around and your node fires, exactly as promised.**
+**At 11:04 on a Tuesday, power failed across one valley for four seconds.
+Twelve things were awake for it — a dog, a streetlight, a kettle, a moth, a
+river, a bus, a radio, a clock, a window, a switch, a road, and the four seconds
+themselves. Each tells the four seconds it had. None of them agree and none of
+them are lying.**
 
-That single rule — put something on the ring and it comes back — is the entire
-interaction model for a site of twelve rooms, each of which reinterprets your
-same taps as rhythm, pitch, a drawn line, a flock, a fern, a system of orbits, a
-woven band, a decaying loop, and finally a field of loops that includes yours.
-The ring never leaves the screen; the rooms change around it; the clock never
-resets.
+The site is those twelve accounts, rendered as plain readable prose on one
+static route. Certain words inside the prose are pressable: pressing one opens a
+short aside in place and grants a **key**. Keys unlock **blocks** — whole
+paragraphs that were never there before — inside *other* accounts, interleaved
+between the paragraphs the reader has already read, so that a witness they
+finished ten seconds ago now says something it did not say. Five
+**contradictions** fire the instant the reader holds both halves of a pair that
+cannot both be true. The twelfth account, `four seconds`, is composed at runtime
+from the keys the reader actually holds, and prints what is missing as blank
+rules of the exact width of the sentences they have not earned.
+
+**The sentence is the control surface.** The pressable words are
+`<details><summary>` inline in the prose, so the first interaction works in the
+first painted frame, before a byte of JavaScript has run, on pointer, on touch,
+with a keyboard and with a screen reader. The first one is rendered already
+open, so the mechanic is taught in zero words of instruction.
 
 No backend. No accounts. No modals. No cookie bar. No webfont. No raster bytes.
-One route, one clock, one `requestAnimationFrame` loop.
+No audio. One route, one clock, and — until the ambient figure mounts — no
+`requestAnimationFrame` at all.
 
-The authoritative spec is **`design/05-build-spec.md`**. Scaffold decisions and
-every place the spec needed a ruling are in **`design/06-wp0-notes.md`**.
+The authoritative spec is **`design/11-narrative-build-spec.md`**. Every place it
+needed a ruling during the teardown is in **`design/12-wpn-notes.md`**. The text
+is frozen in `src/content/accounts.ts` and shaped by `src/content/schema.ts`.
 
 ---
 
@@ -37,21 +51,16 @@ already on the machine (see **Sandbox environment**).
 | `pnpm build` / `pnpm start` | Production build / serve |
 | `pnpm typecheck` | `tsc --noEmit`, strict, `noUncheckedIndexedAccess` |
 | `pnpm lint` | ESLint (flat config; `next lint` is not used) |
-| `pnpm test:unit` | `node --test` over `tests/unit/` — the share codec, geometry, rng |
-| `pnpm test:e2e` | Playwright: smoke, rooms, reduced motion, per-room specs |
+| `pnpm test:unit` | `node --test` over `tests/unit/` — compile, corpus, knowledge, share, rng |
+| `pnpm test:e2e` | Playwright: reading, keys, navigation, share, copy, reduced motion, per-account |
 | `pnpm test:a11y` | Playwright, axe-core, the `@a11y` suite |
-| `pnpm budget` | Byte budgets: Tier A / Tier B / Tier C, per-room chunk ceilings |
+| `pnpm budget` | Byte budgets: Tier A / B / C, **the document**, **the flight payload** |
 | `pnpm audit:perf` | Lighthouse ×3, median gate, writes `reports/perf-report.json` |
 | `pnpm analyze` | Bundle treemap (`ANALYZE=true next build`) |
 | **`pnpm verify`** | **typecheck → lint → build → budget → unit → e2e → a11y. Required before every merge.** |
 
-```bash
-pnpm verify
-```
-
 `pnpm audit:perf` is deliberately **not** part of `verify`: it costs a Lighthouse
-run and it gates on hero performance, which WP1 owns. Run it before merging a
-change that touches the landing route.
+run. Run it before merging a change that touches the landing route.
 
 ## Sandbox environment
 
@@ -74,36 +83,86 @@ export no_proxy=localhost,127.0.0.1
 ## Architecture in one screen
 
 ```
-src/app/        layout (document + inline bootstrap), page (the one route),
-                not-found, s/[slug] (prerendered alias -> ?s=), api/beacon
-src/lib/        THE SHARED CONTRACT — clock, ring-store, ring-geometry, share,
-                keep, tokens, motion, storage, beacon, audio, url-state, rng,
-                use-canvas, use-lazy-mount, use-motion-preference, garden-seed,
-                hero-bootstrap, types
-src/components/ ring/ (RingStage, RoomLayer), hero/, shell/ (AppShell, Ringway,
-                Corridor, NextArc, toggles), ui/
-src/sections/   registry.ts (17 reserved slots) + one folder per room
-tests/          fixtures + smoke / rooms / a11y / reduced-motion + rooms/<slug>
-scripts/        bundle-budget.mjs, audit-perf.mjs
+src/app/         layout (document + inline bootstrap), page (all twelve
+                 accounts), not-found, s/[slug] (prerendered alias -> ?s=),
+                 api/beacon, globals.css
+src/content/     schema.ts (FROZEN contract) · accounts.ts (THE TEXT, frozen)
+                 · compile.ts (Block -> HTML string, server only)
+src/lib/         THE ENGINE — types, knowledge, graph (generated), storage,
+                 boot, share, beacon, url-state, clock, tokens, motion, rng,
+                 keep, use-canvas, use-lazy-mount, use-motion-preference
+src/components/  read/ (AccountSection, Blocks, AskCard, BeliefChoice)
+                 night/ (TheNight, AskBar, Runtime, LiveRegion)
+                 shell/ (SkipLink, MotionToggle, Footer) · ui/
+src/figures/     the ambient figures, one per account (WP-C)
+src/styles/      read.css · night.css · ui.css · motion.css
+tests/           fixtures + reading / keys / navigation / share / copy /
+                 reduced-motion / a11y / smoke + accounts/<slug> + unit/
+scripts/         bundle-budget.mjs, audit-perf.mjs, gen-graph.mjs
 ```
 
-- **One clock.** `src/lib/clock.ts` owns the only `requestAnimationFrame` in the
-  application. One revolution is **4000 ms**, exactly. Rooms register a draw
-  callback with `subscribeFrame`; nothing else may start a rAF.
-- **RingStage is persistent.** It mounts once, outside the room switch, and is
-  never unmounted, keyed or remounted by navigation. Phase and nodes survive
-  every transition.
-- **The URL is the state.** Room in `?s=<slug>`, loop in `#l=<base64url>`.
-  Only `src/lib/url-state.ts` touches `location` or `history`: `pushState` for a
-  deliberate act, `replaceState` for a passive one, so Back always leaves in one
-  press.
-- **Without JS** the page is a plain, readable, scrollable twelve-section
-  document whose links all work. With JS (`html[data-loop-js]`, set before first
-  paint by the inline bootstrap) the corridor collapses to `100dvh` and the stage
-  takes over — no reflow, CLS 0.
-- **Reduced motion is a design**, not a strip: the clock quantizes `phase` to
-  twelve steps per revolution, so every room's calm variant is a property of the
-  clock rather than a per-room reimplementation.
+### The five rules everything else follows from
+
+1. **No corpus JavaScript reaches the browser.** The ~5000 words ship exactly
+   once, in the document. Locked blocks, belief variants and the `four seconds`
+   blanks are **attribute-and-CSS mechanisms**, driven by a pre-paint inline
+   bootstrap and one small client island — never by shipping the story twice.
+   `src/lib/knowledge.ts` is the engine and runs on `src/lib/graph.ts`, a
+   generated, prose-free projection of the corpus. **Two lint rules enforce
+   this** (see *The corpus ban*, below) and `pnpm budget` measures it.
+
+2. **The initial HTML is the whole site.** All twelve accounts, every block,
+   every aside. With JavaScript disabled that document is a complete, readable,
+   scrollable twelve-section essay whose every link works. With JavaScript
+   (`html[data-loop-js]`, set synchronously before first paint) CSS collapses it
+   to the one selected account with **zero reflow**, which is how CLS stays at 0.
+
+3. **Nothing materialises while the reader is looking at it.** The key set that
+   lays an account out is captured when that account is *entered* and is not
+   consulted again until the next entry. What happens live is the night's
+   `changed` marker, which is fixed-size and position-reserved.
+
+4. **The URL is the state.** Account in `?s=<slug>`, belief in `?b=`, a shared
+   state in `#n=<base64url>`. Only `src/lib/url-state.ts` touches `location` or
+   `history`: `pushState` for a deliberate act, `replaceState` for a passive one,
+   so Back always leaves in one press.
+
+5. **One clock, and usually not even that.** `src/lib/clock.ts` owns the only
+   `requestAnimationFrame` in the application, and `startClock()` is called by
+   `<Ambient>` and by nothing else. A reader under reduced motion, or before the
+   idle callback fires, runs **no rAF at all**.
+
+### The attribute contract
+
+`src/lib/boot.ts` writes these synchronously in `<head>`, before first paint.
+Everything downstream — CSS, the runtime, the tests — reads them and nothing
+else. It is frozen: four packages depend on it.
+
+| attribute | values |
+|---|---|
+| `html[data-loop-js]` | present when JavaScript is on |
+| `html[data-motion]` | `auto` \| `reduce` — the resolved value, the stored override beating the OS |
+| `html[data-s]` | the selected account slug |
+| `html[data-belief]` | `valley` \| `hill` \| `none` |
+| `<style id="loop-keys">` | one `display:block!important` rule per held key, for the ENTRY account only |
+| `.blk[data-needs]` | this block is behind a key |
+| `.blk[data-held]` | …and the reader holds it, as of this entry |
+| `.blk[data-new]` | …and it is new to *this* entry, for one entry |
+| `.night > a[data-state]` | `unread` \| `read` \| `changed` |
+
+### The corpus ban
+
+```
+src/content/accounts.ts  may NOT be imported from any 'use client' module
+                         may NOT be imported from src/lib/** at all
+```
+
+The first is a custom ESLint rule (`loop/no-corpus-in-client`) in
+`eslint.config.mjs`; the second is a `no-restricted-imports` pattern, and it is
+the one that closes the transitive hole — a client island importing the engine
+must not be able to pull the story in behind it. Server code that needs the
+prose imports the corpus directly. `auditCorpus()` takes it as an *argument* for
+the same reason.
 
 ## Budgets
 
@@ -112,67 +171,65 @@ scripts/        bundle-budget.mjs, audit-perf.mjs
 | A | render-blocking (stylesheet + inline bootstrap) | ≤ 14 KB gz, **hard** |
 | B | first-party JS on the landing route | ≤ 90 KB gz, **hard** |
 | C | total JS on the landing route | ≤ 230 KB gz, soft |
+| — | total CSS | ≤ 14 KB gz |
+| — | **the prerendered landing document** | **≤ 40 KB gz, hard** |
+| — | **the inline RSC flight payload** | **≤ 18 KB gz, hard** |
 | — | fonts | **0 bytes** |
 | — | raster images | **0 bytes** |
-| — | each room's lazy chunk | ≤ its declared `budgetKb` |
+| — | each figure's lazy chunk | ≤ 2 KB gz |
 
 `pnpm budget` prints and enforces all of them. The framework floor it subtracts
 for Tier B is recorded in `perf-baseline.json`; re-record it only with a reason
 in the PR.
 
-## Adding a room
+**The flight payload is the one to watch.** The page carries the story twice —
+once as HTML and once in the inline payload React reconciles against — so the
+prose is injected as one compiled string per account, and the night is built the
+same way, rather than as thousands of element descriptors. At the WP-N skeleton
+it sits at 15.8 KB of 18. **If you turn static markup into JSX, measure it.**
 
-```bash
-cp -r src/sections/_example src/sections/<your-slug>
-```
+## The work packages
 
-1. `Shell.tsx` — **server** component: `<section id="section-<slug}">`, one
-   `<h2>` (the one-word label), the hook line, a real `<a>` to the next room.
-2. `Room.tsx` — **client** component: one `useEffect` keyed on
-   `[seed, reducedMotion]`, one `subscribeFrame` draw callback, no rAF of your
-   own, no `matchMedia`, no `localStorage`, no mutation of `props.nodes`, and a
-   still, complete composition under reduced motion.
-3. `logic.ts` — the pure, testable half. No DOM.
-4. Your slot in `src/sections/registry.ts` **already imports your folder** — you
-   usually do not need to touch that file at all.
-5. `tests/rooms/<your-slug>.spec.ts` — copy `tests/rooms/_example.spec.ts`.
-6. `pnpm verify`.
+**The rule: one agent, one directory. A file has exactly one owner.**
+There are **no shared files** — the registry is gone, the corpus is the
+manifest, and `tests/accounts/` has one owner.
 
-Read `src/sections/_example/Room.tsx` first. It is heavily commented and it is
-the contract.
+| WP | Owns |
+|---|---|
+| **WP-N** | the teardown and this skeleton. Merged alone, first. Nothing after it. |
+| **WP-A** | `src/components/read/**`, `src/content/compile.ts`, `src/app/page.tsx`, `src/app/layout.tsx`, `src/app/not-found.tsx`, `src/app/s/[slug]/**`, `src/styles/read.css`, `tests/reading.spec.ts`, `tests/copy.spec.ts`, `tests/unit/compile.test.ts` |
+| **WP-B** | `src/lib/knowledge.ts`, `src/lib/graph.ts`, `src/lib/storage.ts`, `scripts/gen-graph.mjs`, `src/components/night/Runtime.tsx`, `src/components/read/BeliefChoice.tsx`, `tests/keys.spec.ts`, `tests/unit/knowledge.test.ts`, `tests/unit/corpus.test.ts` |
+| **WP-C** | `src/components/night/{TheNight,AskBar,LiveRegion}.tsx`, `src/components/shell/{SkipLink,MotionToggle,Footer}.tsx`, `src/app/globals.css`, `src/styles/{night.css,motion.css}`, `src/figures/**`, `tests/navigation.spec.ts`, `tests/reduced-motion.spec.ts`, `tests/accounts/*.spec.ts` |
+| **WP-D** | `src/lib/{share,beacon,keep}.ts`, `src/components/ui/**`, `src/styles/ui.css`, `scripts/{bundle-budget,audit-perf}.mjs`, `perf-baseline.json`, `tests/{smoke,share,a11y}.spec.ts`, `tests/unit/share.test.ts`, `tests/fixtures.ts`, `public/og/**`, `src/app/icon.svg` |
 
-## File ownership map
+**Frozen, and not by convention — by the cost of changing them:**
+`src/lib/types.ts`, `src/lib/boot.ts`, `src/content/schema.ts`,
+`src/content/accounts.ts`, and `package.json`'s `dependencies`. All four
+builders code against `types.ts` and against the attributes `boot.ts` writes; a
+change to either costs four agents. Open an issue instead.
 
-**The rule: one agent, one directory. A file has exactly one owner.** There are
-exactly two shared things and both are append-only with pre-reserved slots:
-`src/sections/registry.ts` and the `tests/rooms/` directory.
-
-| WP | Owns | Registry slots |
-|---|---|---|
-| **WP0** | everything below, initially. After merge: `src/lib/**` (except `audio.ts`), `src/app/**` (except `layout.tsx`), `src/sections/_example/**`, `src/sections/registry.ts`, `tests/fixtures.ts`, `tests/smoke.spec.ts`, `tests/rooms.spec.ts`, `tests/a11y.spec.ts`, `tests/reduced-motion.spec.ts`, `scripts/**`, `perf-baseline.json` | — |
-| **WP1** | `src/components/ring/**`, `src/components/hero/**`, `src/lib/hero-bootstrap.ts`, `src/app/layout.tsx`, `src/sections/origin/**`, `src/sections/return/**`, `tests/rooms/origin.spec.ts`, `tests/rooms/return.spec.ts` | WP1-1, WP1-2 |
-| **WP2** | `src/sections/pulse/**`, `src/sections/tone/**`, `src/lib/audio.ts`, `src/components/ui/SoundPetal.tsx`, `tests/rooms/pulse.spec.ts`, `tests/rooms/tone.spec.ts` | WP2-1, WP2-2 |
-| **WP3** | `src/sections/trail/**`, `src/components/shell/**`, `src/components/ui/KeepButton.tsx`, `src/components/ui/ShareButton.tsx`, `tests/rooms/trail.spec.ts`, `tests/navigation.spec.ts` | WP3-1 |
-| **WP4** | `src/sections/swarm/**`, `src/sections/mirror/**`, `tests/rooms/swarm.spec.ts`, `tests/rooms/mirror.spec.ts` | WP4-1, WP4-2 |
-| **WP5** | `src/sections/growth/**`, `src/sections/orbit/**`, `tests/rooms/growth.spec.ts`, `tests/rooms/orbit.spec.ts` | WP5-1, WP5-2 |
-| **WP6** | `src/sections/loom/**`, `src/sections/wear/**`, `tests/rooms/loom.spec.ts`, `tests/rooms/wear.spec.ts` | WP6-1, WP6-2 |
-| **WP7** | `src/sections/garden/**`, `src/sections/silence|reverse|slow|144|twin/**`, `tests/rooms/garden.spec.ts`, `tests/hidden.spec.ts` | WP7-1, WP7-H1..H5 |
-
-**Frozen after WP0:** every file in `src/lib/**` except `src/lib/audio.ts`, and
-`package.json`'s `dependencies`. A room agent who needs a change to a shared
-module opens an issue; the architect makes the change. A room agent editing
-`src/lib/types.ts` is the failure mode that costs the swarm a day.
-
-**Merge order:** WP0 → WP1 → WP3 → WP2 → WP4 → WP5 → WP6 → WP7.
+**Merge order:** WP-N alone, then WP-A / WP-B / WP-C / WP-D in any order. The
+paths are disjoint, so the only integration risk is the attribute contract,
+which `boot.ts` and `types.ts` fix.
 
 ## Copy
 
-Every word on the site is listed in **§I of `design/05-build-spec.md`**.
-**No word may appear on the site that is not in that inventory.** Adding one
-requires editing §I first. Permanently forbidden: any count of people, any
-"live" / "online now" language, any invented activity, any attribution of a loop
-to a person, any countdown, any streak, any sign-up prompt, and any
-`read more` / `learn more` / `click here`.
+**No visible string may appear on the site that is not either (a) in
+`src/content/accounts.ts`, or (b) in the fixed table at
+`design/11-narrative-build-spec.md` §C.13.** Adding one is an edit to that
+section and needs the architect. The whole of (b) is:
+
+> `the lights went out for four seconds.` · `twelve things were awake.` ·
+> `gentle mode` · `keep this` · `send the night as you have it` · `see also` ·
+> `someone read it this way` · `read` · `it says more now` · `changed` ·
+> `n/5` · `loop` · `skip to the account`
+
+`n/5` is the only numeral the UI may print; the corpus may print `11:04`,
+`four`, `six` and `ten`. Permanently forbidden anywhere: `read more`,
+`learn more`, `click here`, `next`, `click`, `tap`, `scroll`, `discover`,
+`experience`, `journey`, `immersive`, `imagine`, any countdown, any count of
+people, any `live` / `now` construction, and any sign-up prompt.
+`tests/copy.spec.ts` enforces it.
 
 ## Deploy
 
@@ -185,8 +242,7 @@ Vercel, default Next.js preset, pnpm, **zero configuration**.
 4. Deploy.
 
 Security headers live in `next.config.ts`, so they apply identically in dev, in
-`next start` and in production, and they are covered by tests. There is no
-`vercel.json`; Vercel already serves `/_next/static/*` immutably.
+`next start` and in production. There is no `vercel.json`.
 
 `@vercel/analytics` and `@vercel/speed-insights` mount only when the `VERCEL` /
 `VERCEL_ENV` environment variables are present — i.e. on every preview and
@@ -194,32 +250,21 @@ production deploy, and on no local run (their script is served by the platform
 and 404s off it, which would break the zero-console-errors gate).
 
 `/api/beacon` is the first-party engagement sink: it logs one JSON line and
-returns 204. In production those lines land in Vercel's runtime logs. Swapping
-the `console.log` for a log drain or a KV write does not touch a line of client
-code.
+returns 204. No cookies, no fingerprinting, no PII, and it refuses to send at
+all under DNT / GPC.
 
-## Status (2026-09-22)
+## Status
 
-The bar for "ready" was an estimated **≥ 90 % of visitors not bouncing**, scored
-with the 100-point bounce-risk rubric in `design/05-build-spec.md` §H
-(≥ 92 = estimated ≥ 90 % non-bounce). Three independent audit passes on the
-built site are in `design/07`, `08` and `09`:
+The ring build scored **96 / 100** on the bounce-risk rubric across three audit
+passes (`design/07`, `08`, `09`). That site has been replaced; the rubric has
+not. It is restated in full at `design/11-narrative-build-spec.md` §H.4 and the
+threshold is unchanged: **≥ 92 with zero Category H penalties**.
 
-| Pass | Score | Result |
-|---|---|---|
-| 1 (`design/07-bounce-audit.md`) | 84 / 100 | eight fixes prescribed |
-| 2 (`design/08-bounce-audit-2.md`) | 93 / 100 | two phone-layout regressions found and fixed |
-| 3 (`design/09-bounce-audit-3.md`) | **96 / 100** | all hard gates pass, zero penalties |
-
-Verified on the final build (`pnpm verify` + `pnpm audit:perf`):
+At the WP-N skeleton:
 
 | Gate | Result |
 |---|---|
-| unit / e2e / a11y | 19 · 363 (0 failed) · 20 passed |
-| Lighthouse mobile (3-run median) | performance 99 · accessibility 100 · FCP = LCP 913 ms · TBT 89 ms · TTI 2.15 s · CLS 0 |
-| bytes (gzip) | render-blocking 12.3 KB · first-party JS 43.2 KB · total JS 185 KB · fonts 0 · images 0 |
+| `pnpm verify` | green — 47 unit · 141 e2e · 8 a11y |
+| bytes (gzip) | Tier A 8.4 KB · Tier B 7.7 KB · Tier C 146.2 KB · document 29.4 KB · flight 15.8 KB · fonts 0 · rasters 0 |
 
-Remaining rubric deductions (4 points, all cosmetic, listed with fixes in
-`design/09`): 200 % zoom on a phone pushes some notches off-screen; the two
-outbound controls sit in the top corner on phones; 4 px row gaps on the
-shortest phones; the desktop dial's ticks are small.
+The four builders take it from there.
