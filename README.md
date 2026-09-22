@@ -42,7 +42,7 @@ already on the machine (see **Sandbox environment**).
 | `pnpm test:a11y` | Playwright, axe-core, the `@a11y` suite |
 | `pnpm budget` | Byte budgets: Tier A / Tier B / Tier C, per-room chunk ceilings |
 | `pnpm audit:perf` | Lighthouse ×3, median gate, writes `reports/perf-report.json` |
-| `pnpm analyze` | Bundle treemap (`ANALYZE=true next build --webpack`) |
+| `pnpm analyze` | Bundle treemap (`ANALYZE=true next build`) |
 | **`pnpm verify`** | **typecheck → lint → build → budget → unit → e2e → a11y. Required before every merge.** |
 
 ```bash
