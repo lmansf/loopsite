@@ -62,7 +62,6 @@ export function useInboundShare(): void {
 
   useEffect(() => {
     if (done || !code) return;
-    let caption: ReturnType<typeof setTimeout> | null = null;
     // Deferred one task, not set here, so a Strict Mode double-invoke in dev
     // cancels the first attempt instead of spending the one merge on it.
     const task = setTimeout(() => {
@@ -77,13 +76,13 @@ export function useInboundShare(): void {
       const live = document.getElementById('loop-live');
       if (!live) return;
       live.textContent = CAPTION;
-      caption = setTimeout(() => {
-        if (live.textContent === CAPTION) live.textContent = '';
+      // NOT cancelled on cleanup: `clearCode` above drops the hash, which
+      // re-runs this effect, and a cleanup that cancelled the release would
+      // leave `someone read it this way` in the live region for ever.
+      setTimeout(() => {
+        if (live.isConnected && live.textContent === CAPTION) live.textContent = '';
       }, CAPTION_MS);
     }, 0);
-    return () => {
-      clearTimeout(task);
-      if (caption) clearTimeout(caption);
-    };
+    return () => clearTimeout(task);
   }, [code, clearCode]);
 }

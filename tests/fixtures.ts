@@ -54,6 +54,7 @@ export const test = base.extend<{ page: Page }>({
 });
 
 export { expect };
+export type { Page, Locator } from '@playwright/test';
 
 /**
  * Go to an account and wait until the runtime has entered it. `data-s` is set

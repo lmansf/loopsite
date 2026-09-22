@@ -17,9 +17,15 @@ import { keepPng } from '@/lib/keep';
 import type { AccountState } from '@/lib/types';
 import { Button } from './Button';
 
-/** The night's twelve slots, in nav order, as the reader is seeing them. */
+/**
+ * The night's twelve slots, in nav order, as the reader is seeing them.
+ *
+ * One `<nav>` per account lives in the DOM and CSS shows one of them (§C.7),
+ * but the runtime paints `data-state` onto every slot of every nav, so the
+ * twelve marks read the same from any of them. The first is taken.
+ */
 function readMarks(): AccountState[] {
-  const night = document.querySelector('.night:not([hidden])') ?? document.querySelector('.night');
+  const night = document.querySelector('.night');
   const slots = night ? [...night.querySelectorAll<HTMLElement>('a[data-slug]')] : [];
   return slots.map((slot) => {
     const state = slot.dataset.state;
