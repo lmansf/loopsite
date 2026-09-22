@@ -110,10 +110,26 @@
   .night > a:hover .gap, .night > a:focus-visible .gap { display: block; }
 }
 
-/* ---------- the three states: SHAPE first, colour never alone (§C.7, §F.4) --
-     unread   a hollow ring, 1 px, no fill
-     read     a SOLID disc
-     changed  a solid disc AND a second short bar above it
+/* ---------- the marks: SHAPE first, colour never alone (§C.7, §F.4) --------
+   TWO attributes, drawn as two independent marks, because they answer two
+   different questions (`Runtime.tsx`'s `paintNight`):
+
+     data-state   where the READER has been            ->  the FILL
+       unread     a hollow ring, 1 px, no fill
+       read       a SOLID disc
+       changed    a solid disc; the reader has been here since it changed
+     data-more    an unlocked, unseen block is in it   ->  the BAR
+
+   Four shapes out of two marks — hollow, hollow-plus-bar, solid,
+   solid-plus-bar — and no new colour. `changed` implies `data-more`, so the
+   two visited appearances are byte-identical to what they were; what is new
+   is the hollow mark that carries a bar, which is the first-time reader's
+   case and the ten-second moment §A.2 prices the whole build on.
+
+   The bar is deliberately not allowed to fill the mark. An unvisited slot
+   stays hollow, or the night says the reader has been somewhere they have
+   not, which is the Category H exposure the audit spent §3 arguing about.
+
    Solid-versus-hollow is the one distinction that survives a 10 px mark, a
    monochrome display and forced colours. §C.7 draws `read` as a filled mark
    with an inner hairline; at 10 px that is a bullseye, and a bullseye reads as
@@ -133,18 +149,25 @@
 .night > a[data-state="changed"] .mark {
   background: var(--c-accent); border-color: var(--c-accent);
 }
-/* changed: a SECOND SHORT BAR above the mark. A shape, not a colour, anchored
+/* the bar: a SECOND SHORT MARK above the first. A shape, not a colour, anchored
    to the mark so it lands correctly in both the phone grid and the desktop
    rail. Its space is reserved by the slot's top padding, so it appears
-   without moving anything (§E, CLS 0). */
-.night > a[data-state="changed"] .mark::after {
+   without moving anything (§E, CLS 0).
+
+   Keyed on `data-more`, not on `data-state="changed"`: the runtime sets it on
+   every account holding a block the reader has unlocked and not yet seen,
+   whether or not they have been there. `changed` implies `data-more`, so a
+   visited slot looks exactly as it did; an unvisited one stays hollow and
+   muted and merely gains the bar. Without this, pressing a word on a cold
+   profile changes nothing on screen, which is the whole ten-second hook. */
+.night > a[data-more] .mark::after {
   content: '';
   position: absolute; left: 50%; transform: translateX(-50%);
   bottom: calc(100% + 3px);   /* the slot's 5 px top padding is its reservation */
   width: 10px; height: 2px; border-radius: 1px;
   background: var(--c-accent-hi);
 }
-:root[data-motion="auto"] .night > a[data-state="changed"] .mark::after {
+:root[data-motion="auto"] .night > a[data-more] .mark::after {
   animation: bar-in 200ms var(--ease-enter) both;
 }
 @keyframes bar-in { from { opacity: 0 } to { opacity: 1 } }
@@ -311,7 +334,7 @@ html:not([data-loop-js]) .ask-bar[data-slug="dog"] { display: flex; }
   .night .mark { border-color: CanvasText; }
   .night > a[data-state="read"] .mark,
   .night > a[data-state="changed"] .mark { background: CanvasText; border-color: CanvasText; }
-  .night > a[data-state="changed"] .mark::after { background: CanvasText; }
+  .night > a[data-more] .mark::after { background: CanvasText; }
   .night > a[aria-current="page"] .mark { outline-color: Highlight; }
   .ask-bar { background: Canvas; }
 }
