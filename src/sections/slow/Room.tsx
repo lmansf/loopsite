@@ -1,17 +1,23 @@
-"use client";
+'use client';
 
 /**
- * src/sections/slow/Room.tsx — client component, lazily loaded.
+ * src/sections/slow/Room.tsx — the registry's entry for SLOW.
  *
- * PLACEHOLDER written by WP0 so the site is navigable end to end before this
- * room exists. Its owner replaces this file wholesale: delete the
- * PlaceholderRoom import and draw the room from `props`. Copy
- * src/sections/_example/Room.tsx as the starting point.
+ * A thin client shim: the trigger itself is `Trigger.tsx`, reached only
+ * through the dynamic import below so it ships as a chunk of its own (see
+ * src/sections/garden/Room.tsx). The hidden host mounts this same shim over
+ * whichever room is showing.
  */
 
-import { PlaceholderRoom } from '@/components/ring/PlaceholderRoom';
-import type { SectionProps } from '@/lib/types';
+import { lazy, Suspense } from 'react';
+import type { HiddenProps } from '../garden/stage';
 
-export default function Room(props: SectionProps) {
-  return <PlaceholderRoom {...props} label="slow" />;
+const Trigger = lazy(() => import('./Trigger'));
+
+export default function Room(props: HiddenProps) {
+  return (
+    <Suspense fallback={null}>
+      <Trigger {...props} />
+    </Suspense>
+  );
 }
