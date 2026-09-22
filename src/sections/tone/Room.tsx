@@ -27,7 +27,7 @@ import { pointAt, radiusOfLevel } from '@/lib/ring-geometry';
 import { readState } from '@/lib/storage';
 import { rgba } from '@/lib/tokens';
 import type { FireEvent, SectionProps } from '@/lib/types';
-import { SoundPetal, petalRevealed } from '@/components/ui/SoundPetal';
+import { SoundPetal, petalPosition, petalRevealed } from '@/components/ui/SoundPetal';
 import styles from './room.module.css';
 import {
   REALIGN_LIFT_MS,
@@ -325,9 +325,8 @@ export default function Room(props: SectionProps) {
   }, [props.seed, props.reducedMotion]);
 
   const g = props.geometry;
-  return (
-    <SoundPetal x={g.cx} y={g.cy + g.R + 26} show={petal && g.R > 0} className={styles.petal} />
-  );
+  const at = petalPosition(g);
+  return <SoundPetal x={at.x} y={at.y} show={petal && g.R > 0} className={styles.petal} />;
 }
 
 /** An arc between two normalized turns (0 = 12 o'clock), in either order. */

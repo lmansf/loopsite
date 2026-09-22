@@ -29,6 +29,18 @@ export function petalRevealed(): boolean {
   return revealedOnce;
 }
 
+/**
+ * The petal's centre: on the ring's outer edge at a = 0.5, straddling the
+ * stroke with most of its 44 px outside the ring. The caption slot
+ * (`#loop-status`) begins 28 px below the ring and carries the persistent hero
+ * lines, so the petal never drops into it.
+ */
+export const PETAL_EDGE_OFFSET = 6;
+
+export function petalPosition(g: { cx: number; cy: number; R: number }): { x: number; y: number } {
+  return { x: g.cx, y: g.cy + g.R + PETAL_EDGE_OFFSET };
+}
+
 export interface SoundPetalProps {
   /** Centre of the petal in stage CSS pixels. */
   x: number;

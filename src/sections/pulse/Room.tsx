@@ -28,7 +28,7 @@ import { pointAt } from '@/lib/ring-geometry';
 import { readState } from '@/lib/storage';
 import { rgba, token } from '@/lib/tokens';
 import type { SectionProps } from '@/lib/types';
-import { SoundPetal, petalRevealed } from '@/components/ui/SoundPetal';
+import { SoundPetal, petalPosition, petalRevealed } from '@/components/ui/SoundPetal';
 import styles from './room.module.css';
 import {
   FLASH_AMPLITUDE,
@@ -353,10 +353,11 @@ export default function Room(props: SectionProps) {
   }, [props.seed, props.reducedMotion]);
 
   const g = props.geometry;
+  const at = petalPosition(g);
   return (
     <SoundPetal
-      x={g.cx}
-      y={g.cy + g.R + 26}
+      x={at.x}
+      y={at.y}
       show={petal && g.R > 0}
       className={styles.petal}
       onPress={() => {
