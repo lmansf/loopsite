@@ -140,3 +140,270 @@ test('a corpus that breaks a law is caught', () => {
   const problems = auditCorpus(broken);
   assert.ok(problems.some((p) => p.includes('not-a-key')), problems.join('\n'));
 });
+
+/* ======================================================================== *
+ *  WP-B — granting, persistence, the entry masks and the contradictions.
+ *
+ *  `node --test` has no DOM, so `storage.ts` keeps its state in memory: every
+ *  read returns the default and every write is cached and never reaches a
+ *  disk that is not there. That is exactly the "storage failure is silent and
+ *  total" path of §C.12, so these tests are also the proof that the engine
+ *  works with storage switched off. The two tests that need a RELOAD install
+ *  a fake `window.localStorage` and flush to it.
+ * ======================================================================== */
+
+import {
+  GATE_KEYS,
+  __resetKnowledgeForTest,
+  accountState,
+  decodeEntryMask,
+  effectiveKeys,
+  encodeEntryMask,
+  grantKey,
+  markEntered,
+  noteOpen,
+  readKnowledge,
+  setBelief,
+} from '../../src/lib/knowledge.ts';
+import { __resetStorageForTest, flushState, readState } from '../../src/lib/storage.ts';
+
+/** A reader who has just arrived, holding nothing, with nothing remembered. */
+function freshReader(): void {
+  __resetStorageForTest();
+  __resetKnowledgeForTest();
+}
+
+/** Everything the corpus can grant. */
+const ALL_KEYS = [...ASIDES];
+
+test('a key is granted once, is never spent, and opening the word again grants nothing', () => {
+  freshReader();
+  const first = grantKey('one-press');
+  assert.equal(first.key, 'one-press');
+  assert.ok(readKnowledge().keys.has('one-press'));
+
+  const again = grantKey('one-press');
+  assert.deepEqual(again.changed, []);
+  assert.deepEqual(again.contradictions, []);
+  assert.equal(readKnowledge().keys.size, 1, 'one aside, one key');
+  assert.equal(readState().keys.filter((k) => k === 'one-press').length, 1);
+});
+
+test('a key that no aside grants never reaches storage', () => {
+  freshReader();
+  grantKey('not-a-key');
+  grantKey('contra:bridge'); // synthetic keys are COMPUTED, never granted
+  assert.equal(readKnowledge().keys.size, 0);
+  assert.deepEqual(readState().keys, []);
+});
+
+test('opens are counted, and the third one grants thrice:<key>', () => {
+  freshReader();
+  noteOpen('one-press');
+  noteOpen('one-press');
+  assert.ok(!readKnowledge().effective.has('thrice:one-press'));
+  noteOpen('one-press');
+  assert.equal(readKnowledge().opens['one-press'], 3);
+  assert.ok(readKnowledge().effective.has('thrice:one-press'));
+});
+
+test('an account read before the key exists says more now, and stops saying it once read again', () => {
+  freshReader();
+  markEntered('dog');
+  assert.equal(accountState('dog', readKnowledge()), 'read');
+
+  // `one-press` is emitted by `switch` and consumed by `dog` — the §B journey.
+  const delta = grantKey('one-press');
+  assert.ok(delta.changed.includes('dog'), 'the dog says more now');
+  assert.equal(accountState('dog', readKnowledge()), 'changed');
+  assert.equal(accountState('switch', readKnowledge()), 'unread', 'never entered');
+
+  markEntered('dog');
+  assert.equal(accountState('dog', readKnowledge()), 'read', 'the marker clears on the re-read');
+});
+
+test('the earned block is interleaved at its authored index, not appended', () => {
+  freshReader();
+  const before = visibleBlockIds('dog', new Set(), null);
+  const after = visibleBlockIds('dog', new Set(['one-press']), null);
+  assert.equal(after.length, before.length + 1);
+  assert.equal(after[1], 'dog-outside', 'between dog-1 and dog-2, where it was written');
+  assert.deepEqual(after.filter((id) => id !== 'dog-outside'), before);
+});
+
+test('a contradiction lands the moment both halves are held, and only then', () => {
+  freshReader();
+  assert.deepEqual(grantKey('two-clicks').contradictions, []);
+  const delta = grantKey('one-press');
+  assert.deepEqual(delta.contradictions, ['clicks']);
+  assert.ok(readKnowledge().contradictions.has('clicks'));
+  assert.ok(readKnowledge().effective.has('contra:clicks'));
+  // it is earned once; holding it is not holding it twice
+  assert.deepEqual(grantKey('two-clicks').contradictions, []);
+});
+
+test('a reader who has opened everything holds all five, and nothing else', () => {
+  freshReader();
+  for (const key of ALL_KEYS) grantKey(key);
+  const k = readKnowledge();
+  assert.equal(k.contradictions.size, CONTRADICTIONS.length);
+  assert.equal(CONTRADICTIONS.length, 5);
+  assert.ok(k.effective.has('contra:all'));
+  for (const c of CONTRADICTIONS) assert.ok(k.contradictions.has(c.id));
+});
+
+test('nothing is reachable that should not be: every contradiction needs every one of its keys', () => {
+  for (const c of CONTRADICTIONS) {
+    for (const missing of c.needs) {
+      freshReader();
+      for (const key of c.needs) if (key !== missing) grantKey(key);
+      assert.ok(
+        !readKnowledge().contradictions.has(c.id),
+        `${c.id} landed without ${missing}`,
+      );
+    }
+  }
+});
+
+test('the entry mask remembers synthetic gates too, so a gated block is new exactly once', () => {
+  assert.ok(GATE_KEYS.includes('all-twelve'), 'the belief choice is gated by a synthetic key');
+  const held = new Set([ASIDES[0] as string, 'all-twelve']);
+  const mask = encodeEntryMask(held);
+  const back = decodeEntryMask(mask);
+  assert.ok(back.has(ASIDES[0] as string));
+  assert.ok(back.has('all-twelve'));
+  // a mask written before gate bits existed is still read for what it said
+  assert.deepEqual([...decodeEntryMask(encodeAsideMask(held))], [ASIDES[0]]);
+  assert.equal(decodeEntryMask('!!!~!!!').size, 0);
+  assert.ok(mask.length <= 32, 'storage caps an entry mask at 32 characters');
+});
+
+test('the belief is stored, reversible, and unlocks its own choice', () => {
+  freshReader();
+  assert.equal(readKnowledge().belief, null);
+  setBelief('hill');
+  assert.equal(readKnowledge().belief, 'hill');
+  assert.ok(readKnowledge().effective.has('all-twelve'), 'a reader with a belief keeps the choice');
+  setBelief('valley');
+  assert.equal(readKnowledge().belief, 'valley');
+  setBelief(null);
+  assert.equal(readKnowledge().belief, null);
+  assert.equal(readState().belief, 0);
+});
+
+test('the belief gates the halves of `both`, which is why it takes two readings', () => {
+  // `lit-from-below` is in lamp's valley block, `lit-from-above` in its hill
+  // block: the pair cannot be on screen at the same time (§I.13).
+  const valley = visibleBlockIds('lamp', new Set(), 'valley');
+  const hill = visibleBlockIds('lamp', new Set(), 'hill');
+  assert.ok(valley.includes('lamp-valley') && !valley.includes('lamp-hill'));
+  assert.ok(hill.includes('lamp-hill') && !hill.includes('lamp-valley'));
+  const both = CONTRADICTIONS.find((c) => c.id === 'both');
+  assert.deepEqual([...(both?.needs ?? [])], ['lit-from-below', 'lit-from-above']);
+});
+
+test('twelve accounts entered is a pass, and a second reading is a second pass', () => {
+  freshReader();
+  for (const id of ACCOUNT_IDS) markEntered(id);
+  let k = readKnowledge();
+  assert.equal(k.pass, 1);
+  assert.ok(k.effective.has('all-twelve'), 'the choice is offered');
+  assert.ok(!k.effective.has('pass:2'));
+  assert.ok(k.effective.has('silent-pass'), 'twelve accounts, no keys');
+  assert.ok(k.effective.has('empty-handed'));
+
+  for (const id of ACCOUNT_IDS) markEntered(id);
+  k = readKnowledge();
+  assert.equal(k.pass, 2);
+  assert.ok(k.effective.has('pass:2'));
+
+  for (let n = 0; n < 3; n++) for (const id of ACCOUNT_IDS) markEntered(id);
+  assert.equal(readKnowledge().pass, 3, 'capped at three');
+
+  grantKey('one-press');
+  k = readKnowledge();
+  assert.ok(!k.effective.has('empty-handed'), 'one key is not empty-handed');
+  assert.ok(!k.effective.has('silent-pass'));
+});
+
+test('four seconds is seven blanks at zero keys and seven sentences at seven', () => {
+  const none = visibleBlockIds('four-seconds', new Set(), null);
+  assert.deepEqual(none, []);
+  const every = new Set(ALL_KEYS);
+  assert.equal(visibleBlockIds('four-seconds', every, null).length, 7);
+});
+
+test('effectiveKeys never invents a key the reader does not hold', () => {
+  freshReader();
+  grantKey('one-press');
+  const k = readKnowledge();
+  const effective = effectiveKeys(k);
+  for (const key of effective) {
+    assert.ok(
+      ASIDE_BIT.has(key) || isSyntheticKey(key),
+      `${key} is neither an aside nor a legal synthetic key`,
+    );
+  }
+  assert.ok(effective.has('one-press'));
+  assert.ok(!effective.has('two-clicks'));
+});
+
+/* ---- the one thing that needs a disk: a reload ---- */
+
+function withFakeStorage(run: () => void): void {
+  const store = new Map<string, string>();
+  const fake = {
+    localStorage: {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    },
+  };
+  const had = 'window' in globalThis;
+  (globalThis as unknown as { window?: unknown }).window = fake;
+  try {
+    run();
+  } finally {
+    if (!had) delete (globalThis as unknown as { window?: unknown }).window;
+  }
+}
+
+test('keys, contradictions, the belief and the pass all survive a reload', () => {
+  withFakeStorage(() => {
+    freshReader();
+    grantKey('two-clicks');
+    grantKey('one-press');
+    setBelief('hill');
+    for (const id of ACCOUNT_IDS) markEntered(id);
+    flushState();
+
+    // the reload: every cache dropped, the engine reads the disk again
+    freshReader();
+    const k = readKnowledge();
+    assert.ok(k.keys.has('two-clicks') && k.keys.has('one-press'));
+    assert.ok(k.contradictions.has('clicks'));
+    assert.equal(k.belief, 'hill');
+    assert.equal(k.pass, 1);
+    assert.equal(k.visited.size, 12);
+    assert.equal(accountState('dog', k), 'read', 'the dog was read holding one-press');
+  });
+});
+
+test('a reader who reads everything, then earns a key, is told the account changed', () => {
+  withFakeStorage(() => {
+    freshReader();
+    for (const id of ACCOUNT_IDS) markEntered(id);
+    flushState();
+    freshReader();
+    const delta = grantKey('light-on-the-bridge');
+    // every account with a block behind that key, and no other
+    assert.deepEqual(
+      [...delta.changed].sort(),
+      [...(CONSUMERS.get('light-on-the-bridge') ?? [])].sort(),
+    );
+    assert.ok(delta.changed.includes('lamp'));
+    flushState();
+    freshReader();
+    assert.equal(accountState('lamp', readKnowledge()), 'changed', 'across a reload');
+  });
+});

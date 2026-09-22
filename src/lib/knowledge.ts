@@ -152,6 +152,68 @@ export const SYNTHETIC = {
   thrice: (key: KeyId) => `thrice:${key}`,
 } as const;
 
+/**
+ * The synthetic keys that can gate a block: every non-aside `needs` in the
+ * graph, plus `all-twelve`, which gates the belief choice's wrapper (§C.9)
+ * without being a corpus block at all.
+ *
+ * They exist because of the entry mask. `loop:v2.entry` records the keys held
+ * at an account's last entry as an aside bitfield, and a synthetic key has no
+ * aside bit — so without this list a block behind one would read as *new* at
+ * every entry and its account would read `changed` for ever. The order is
+ * stable by construction (graph order, `all-twelve` last), which is all the
+ * mask needs; it is not the share codec's order and is never carried off this
+ * device.
+ */
+export const GATE_KEYS: readonly KeyId[] = (() => {
+  const out: KeyId[] = [];
+  for (const a of GRAPH.accounts) {
+    for (const b of a.blocks) {
+      if (b.needs && !ASIDE_BIT.has(b.needs) && !out.includes(b.needs)) out.push(b.needs);
+    }
+  }
+  if (!out.includes(SYNTHETIC.allTwelve)) out.push(SYNTHETIC.allTwelve);
+  return out;
+})();
+
+const GATE_BIT: ReadonlyMap<KeyId, number> = new Map(GATE_KEYS.map((id, i) => [id, i] as const));
+const GATE_SEP = '~';
+
+/**
+ * The stored entry mask (§C.6): the aside bitfield of §C.12, and after a `~`
+ * the gate-key bitfield above when any is held. A mask written by an earlier
+ * build has no separator and decodes as aside bits alone, which is exactly
+ * what it meant.
+ */
+export function encodeEntryMask(keys: ReadonlySet<KeyId>): string {
+  const asides = encodeAsideMask(keys);
+  const gates = new Uint8Array(Math.ceil(GATE_KEYS.length / 8));
+  let any = false;
+  for (const key of keys) {
+    const bit = GATE_BIT.get(key);
+    if (bit === undefined) continue;
+    any = true;
+    const at = bit >> 3;
+    gates[at] = (gates[at] ?? 0) | (1 << (bit & 7));
+  }
+  return any ? `${asides}${GATE_SEP}${bytesToBase64Url(gates)}` : asides;
+}
+
+/** The inverse. Anything unreadable yields an empty set rather than an error. */
+export function decodeEntryMask(mask: string): Set<KeyId> {
+  const cut = mask.indexOf(GATE_SEP);
+  const out = decodeAsideMask(cut < 0 ? mask : mask.slice(0, cut));
+  if (cut < 0) return out;
+  const bytes = base64UrlToBytes(mask.slice(cut + 1));
+  if (!bytes) return out;
+  for (let i = 0; i < GATE_KEYS.length; i++) {
+    const byte = bytes[i >> 3];
+    if (byte === undefined) break;
+    if (byte & (1 << (i & 7))) out.add(GATE_KEYS[i] as KeyId);
+  }
+  return out;
+}
+
 /** Is `k` a legal synthetic key? A `needs` that is neither this nor an aside id fails the audit. */
 export function isSyntheticKey(k: KeyId): boolean {
   if (k === SYNTHETIC.contraAll) return true;
@@ -208,7 +270,7 @@ function fromState(s: LoopState): Knowledge {
   );
   const entry: Record<string, ReadonlySet<KeyId>> = {};
   for (const [id, mask] of Object.entries(s.entry)) {
-    if (ACCOUNT_SET.has(id)) entry[id] = decodeAsideMask(mask);
+    if (ACCOUNT_SET.has(id)) entry[id] = decodeEntryMask(mask);
   }
   const base: Knowledge = {
     keys,
@@ -226,9 +288,25 @@ function fromState(s: LoopState): Knowledge {
   return { ...withContra, effective: effectiveKeys(withContra) };
 }
 
+/**
+ * A contradiction is always RECOMPUTED from the keys, so `loop:v2.collected`
+ * is a cache and never the truth. This keeps the cache honest anyway: a
+ * contradiction the reader demonstrably holds is one a share link should
+ * carry and a returning reader should not have to re-derive.
+ */
+function reconcile(k: Knowledge): Knowledge {
+  const s = readState();
+  if (k.contradictions.size === s.collected.length) return k;
+  const collected = [...k.contradictions].filter((id) =>
+    CONTRADICTIONS.some((c) => c.id === id),
+  );
+  if (collected.length !== s.collected.length) writeState({ collected });
+  return k;
+}
+
 /** The reader's knowledge, as of now. Cheap: it is cached until something changes. */
 export function readKnowledge(): Knowledge {
-  if (!snapshot) snapshot = fromState(readState());
+  if (!snapshot) snapshot = reconcile(fromState(readState()));
   return snapshot;
 }
 
@@ -241,7 +319,7 @@ export function subscribe(fn: (k: Knowledge) => void): () => void {
 }
 
 function refresh(): Knowledge {
-  snapshot = fromState(readState());
+  snapshot = reconcile(fromState(readState()));
   for (const l of listeners) l(snapshot);
   return snapshot;
 }
@@ -263,7 +341,9 @@ export function __resetKnowledgeForTest(): void {
  */
 export function grantKey(id: KeyId): KeyDelta {
   const before = readKnowledge();
-  if (before.keys.has(id)) {
+  // Only an aside grants a key. A `data-key` that names nothing in the graph
+  // is a mistake, and a mistake must not reach storage.
+  if (!ASIDE_BIT.has(id) || before.keys.has(id)) {
     return { key: id, changed: [], contradictions: [] };
   }
   const s = readState();
@@ -305,13 +385,28 @@ export function noteOpen(id: KeyId): void {
 export function markEntered(id: AccountId): void {
   const k = readKnowledge();
   const s = readState();
-  const entry = { ...s.entry, [id]: encodeAsideMask(k.keys) };
+  // The mask records the EFFECTIVE set, so a block behind a synthetic key is
+  // new exactly once, like every other block (§C.6).
+  const entry = { ...s.entry, [id]: encodeEntryMask(k.effective) };
   const visited = s.visited.includes(id) ? s.visited : [...s.visited, id];
   const visits = { ...s.visits, [id]: (s.visits[id] ?? 0) + 1 };
-  // A full pass is twelve accounts entered, capped at 3 (§C.5).
-  const pass = visited.length >= ACCOUNT_IDS.length ? Math.min(3, Math.max(s.pass, 1)) : s.pass;
+  // A pass is every one of the twelve entered once more, capped at 3 (§C.5).
+  // Derived from the visit counts rather than counted, so it cannot drift; a
+  // pass a share link gave the reader is never taken back.
+  const pass = Math.max(s.pass, derivePass(visits));
   writeState({ entry, visited, visits, pass });
   refresh();
+}
+
+/**
+ * How many complete passes the reader has made: the smallest number of times
+ * every one of the twelve accounts has been entered, capped at 3 (§C.5).
+ */
+function derivePass(visits: Readonly<Record<string, number>>): number {
+  let least = Infinity;
+  for (const id of ACCOUNT_IDS) least = Math.min(least, visits[id] ?? 0);
+  if (!Number.isFinite(least)) return 0;
+  return Math.max(0, Math.min(3, least));
 }
 
 /** Store the belief, or clear it. Mirrored onto `html[data-belief]` by the runtime. */

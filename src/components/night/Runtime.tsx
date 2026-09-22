@@ -30,9 +30,14 @@
  * (§E item 3). `eslint.config.mjs` makes an accidental corpus import here a
  * lint error.
  *
- * Not yet here, and deliberately left to their owners: the ambient figure's
- * idle mount (WP-C), the contradiction lines and their effects (WP-B), the
- * share merge and the `someone read it this way` caption (WP-D).
+ * Not here, and deliberately left to their owners: the ambient figure's idle
+ * mount (WP-C), the share merge and the `someone read it this way` caption
+ * (WP-D).
+ *
+ * A contradiction has no authored effect to trigger: `Contradiction.line` is
+ * prose, and prose may not reach this module (§E item 3). What a landing
+ * contradiction gets is the hub — the numeral, one Ember pulse, and the same
+ * numeral in the live region so the tick is not a visual-only event.
  */
 
 import { useEffect, useLayoutEffect, useRef } from 'react';
@@ -56,6 +61,8 @@ import type { Knowledge } from '@/lib/types';
 
 const ACCOUNT_SET = new Set<string>(ACCOUNT_IDS);
 const VIEWED_MS = 1000;
+/** one Ember pulse on the hub when a contradiction lands (§C.3, §C.16). */
+const PULSE_MS = 320;
 
 /** `switch — it says more now`, the §C.13 string, joined for one announcement. */
 function announce(text: string): void {
@@ -88,12 +95,90 @@ function paintNight(k: Knowledge, active: string): void {
             : title;
     }
   }
+}
+
+/**
+ * The hub (§C.7, §C.8). `n/5` is the only numeral the UI may print and `0` is
+ * not one of them, so it prints nothing at zero; the box is reserved either
+ * way, so the tick to `1/5` shifts nothing.
+ *
+ * `pulse` is the single 320 ms Ember pulse a landing contradiction earns
+ * (§C.3.4). It is an attribute, so the animation is WP-C's to draw, and it is
+ * never set under reduced motion, where the numeral simply changes (§C.16).
+ */
+function paintHub(k: Knowledge, pulse: boolean): void {
   const n = k.contradictions.size;
+  const text = n > 0 ? `${n}/${CONTRADICTIONS.length}` : '';
+  const still = document.documentElement.dataset.motion === 'reduce';
   for (const hub of document.querySelectorAll<HTMLElement>('.hub')) {
     hub.dataset.found = String(n);
-    const text = n > 0 ? `${n}/${CONTRADICTIONS.length}` : '';
     if (hub.textContent !== text) hub.textContent = text;
+    if (!pulse || still) continue;
+    hub.dataset.pulse = 'true';
+    window.setTimeout(() => {
+      delete hub.dataset.pulse;
+    }, PULSE_MS);
   }
+}
+
+/**
+ * The belief (§C.9). One attribute on `<html>` swaps every authored variant
+ * in the document at once — no network, no remount, nothing to re-render —
+ * and the two options say which one is held by **shape and by semantics**: a
+ * filled pip and `aria-current`, never colour alone (§F.4).
+ *
+ * Both options stay on screen and stay enabled, so the choice is reversible
+ * in one tap; each one pushes, so Back reverses it too.
+ */
+function paintBelief(value: Belief | null): void {
+  document.documentElement.dataset.belief = value ?? 'none';
+  for (const option of document.querySelectorAll<HTMLElement>('[data-belief-option]')) {
+    const held = option.dataset.beliefOption === value;
+    if (held) option.setAttribute('aria-current', 'true');
+    else option.removeAttribute('aria-current');
+    option.querySelector('.pip > circle')?.setAttribute('fill', held ? 'currentColor' : 'none');
+  }
+}
+
+/**
+ * A blank rule in `four seconds` (§C.10) is the real sentence with the colour
+ * taken out of it, so its width, its wrapping and its line count are exact.
+ * The sentence is not earned yet, so it must not be read out either — but the
+ * `see also` link beside it is a real control and must stay reachable and
+ * must still be announced.
+ *
+ * So the prose is wrapped in one `aria-hidden` span and the invisible words
+ * inside it are taken out of the tab order, and the link is left exactly
+ * where the server put it. The span is inline and carries no style of its
+ * own, so it fragments nothing and moves nothing; `veiled` is idempotent and
+ * `unveil` puts every node back the moment the sentence is earned.
+ *
+ * (`aria-hidden` on the block itself — the literal reading of §C.10 — hides
+ * the link as well, and axe is right to call a focusable element inside an
+ * `aria-hidden` subtree a serious defect. Measured: seven of them.)
+ */
+function veil(el: HTMLElement): void {
+  if (el.dataset.veiled === 'true') return;
+  const keep = el.querySelector('.see-also');
+  const span = document.createElement('span');
+  span.setAttribute('aria-hidden', 'true');
+  span.dataset.veil = '';
+  while (el.firstChild && el.firstChild !== keep) span.appendChild(el.firstChild);
+  if (keep) el.insertBefore(span, keep);
+  else el.appendChild(span);
+  for (const summary of span.querySelectorAll('summary')) summary.tabIndex = -1;
+  el.dataset.veiled = 'true';
+}
+
+function unveil(el: HTMLElement): void {
+  if (el.dataset.veiled !== 'true') return;
+  const span = el.querySelector<HTMLElement>('[data-veil]');
+  if (span) {
+    for (const summary of span.querySelectorAll('summary')) summary.removeAttribute('tabindex');
+    while (span.firstChild) el.insertBefore(span.firstChild, span);
+    span.remove();
+  }
+  delete el.dataset.veiled;
 }
 
 /**
@@ -118,18 +203,19 @@ function materialise(slug: string, k: Knowledge, previousMask: ReadonlySet<KeyId
       if (!previousMask.has(needs)) el.dataset.new = 'true';
       else delete el.dataset.new;
       el.removeAttribute('aria-hidden');
+      if (blank) unveil(el);
     } else {
       delete el.dataset.held;
       delete el.dataset.new;
       // In `four seconds` a locked block is a blank rule of exactly its own
       // width — the real sentence, made transparent. It must not be read out.
-      if (blank) el.setAttribute('aria-hidden', 'true');
+      if (blank) veil(el);
     }
   }
 }
 
 export function Runtime() {
-  const { section, belief, setSection } = useUrlState();
+  const { section, belief, setSection, setBelief: setUrlBelief } = useUrlState();
   const entered = useRef<string | null>(null);
   const deliberate = useRef(false);
   const firstEntry = useRef(true);
@@ -151,6 +237,7 @@ export function Runtime() {
     materialise(slug, k, previous);
     document.documentElement.dataset.s = slug;
     paintNight(k, slug);
+    paintHub(k, false);
     entered.current = slug;
 
     // `#loop-keys` did the same job before first paint; the computed result is
@@ -173,16 +260,21 @@ export function Runtime() {
   /* ---- the belief mirror (§C.9) ---- */
   useEffect(() => {
     const stored = readKnowledge().belief;
+    // `?b=` wins over storage, which is how an inbound link hands its reading
+    // over; with no `?b=` the stored belief is what the reader chose last.
     const value: Belief | null = belief ?? stored;
     if (belief && belief !== stored) setBelief(belief);
-    document.documentElement.dataset.belief = value ?? 'none';
+    paintBelief(value);
   }, [belief]);
 
   /* ---- the three delegated listeners, and the beacon ---- */
   useEffect(() => {
     initBeacon();
 
-    const unsubscribe = subscribe((k) => paintNight(k, entered.current ?? ''));
+    const unsubscribe = subscribe((k) => {
+      paintNight(k, entered.current ?? '');
+      paintHub(k, false);
+    });
 
     /** A `<details>` opening is the only way a key is ever granted (§C.3). */
     function onToggle(event: Event): void {
@@ -190,18 +282,28 @@ export function Runtime() {
       if (!(el instanceof HTMLDetailsElement) || !el.classList.contains('aside')) return;
       const key = el.dataset.key;
       if (!key || !el.open) return;
+      // The rule under the word goes solid here and stays solid for the rest
+      // of the reader's life with the site, open or closed (§C.2).
       el.dataset.held = 'true';
       noteOpen(key);
       const delta = grantKey(key);
       const k = readKnowledge();
+      // Nothing in THIS account moves. What moves is the night and the hub —
+      // feedback visibly larger than the target, in the same frame (§C.3).
       paintNight(k, entered.current ?? '');
+      paintHub(k, delta.contradictions.length > 0);
       beacon('word_pressed', { account: entered.current ?? '' });
       if (delta.contradictions.length > 0) {
         beacon('contradiction_found', { id: delta.contradictions[0] as string, n: k.contradictions.size });
       }
-      if (delta.changed.length > 0) {
-        announce(delta.changed.map((id) => `${titleOf(id)} — it says more now`).join(', '));
+      // One announcement for the whole tick (§C.3.3): the accounts that now
+      // say more, and — because the Ember tick is otherwise seen and not
+      // heard — the hub's own `n/5`, which is a §C.13 string.
+      const said = delta.changed.map((id) => `${titleOf(id)} — it says more now`);
+      if (delta.contradictions.length > 0) {
+        said.push(`${k.contradictions.size}/${CONTRADICTIONS.length}`);
       }
+      if (said.length > 0) announce(said.join(', '));
     }
 
     /** Every in-site link is a real href; an ordinary click becomes pushState. */
@@ -217,11 +319,24 @@ export function Runtime() {
       const slug = url.searchParams.get('s') ?? '';
       if (!ACCOUNT_SET.has(slug)) return;
       event.preventDefault();
+
+      // A belief option (§C.9). It is stored, mirrored onto <html> in the same
+      // frame, and pushed, so the other option — which is still on screen and
+      // still enabled — reverses it in one tap, and so does Back.
       const b = url.searchParams.get('b');
       if (b === 'valley' || b === 'hill') {
         setBelief(b);
-        document.documentElement.dataset.belief = b;
+        paintBelief(b);
+        if (slug === entered.current) {
+          setUrlBelief(b, 'push');
+        } else {
+          deliberate.current = true;
+          setSection(slug, 'push');
+          setUrlBelief(b, 'replace');
+        }
+        return;
       }
+
       deliberate.current = true;
       setSection(slug, 'push');
     }
@@ -286,22 +401,29 @@ export function Runtime() {
       if (at >= 0 && at < ACCOUNT_IDS.length) go(at);
     }
 
+    // A key is never lost. `pagehide` is the reliable one; `visibilitychange`
+    // catches the phone that is swiped away and never fires it.
     function onPageHide(): void {
       flushState();
+    }
+    function onVisibility(): void {
+      if (document.visibilityState === 'hidden') flushState();
     }
 
     document.addEventListener('toggle', onToggle, { capture: true, passive: true });
     document.addEventListener('click', onClick);
     document.addEventListener('keydown', onKeyDown);
     window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       unsubscribe();
       document.removeEventListener('toggle', onToggle, { capture: true });
       document.removeEventListener('click', onClick);
       document.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [setSection]);
+  }, [setSection, setUrlBelief]);
 
   return null;
 }
