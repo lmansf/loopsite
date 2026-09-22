@@ -8,6 +8,12 @@
  * `runtime` is a MUTABLE object updated in place by the ring's frame driver.
  * Reading it inside a draw callback is free; reading it during render is not
  * meaningful. Everything that must trigger a re-render is a normal value.
+ *
+ * WP3 additions (all additive; nothing WP0 shipped has changed shape):
+ *   ringwayShown  — §B: the Ringway fades in at 30 s or the 5th node
+ *   escalated     — §C.11: the Next Arc has escalated on idle (never navigates)
+ *   navDir        — §C.11: direction of the last deliberate corridor move
+ *   lockIn        — §C.5: the slug whose notch is locking in right now
  */
 
 import { createContext, useContext } from 'react';
@@ -33,6 +39,8 @@ export interface LoopRuntime {
   bg: CanvasRenderingContext2D | null;
 }
 
+export type NavDir = 'forward' | 'back' | null;
+
 export interface LoopContextValue {
   runtime: LoopRuntime;
   /** the ?s= slug */
@@ -50,6 +58,14 @@ export interface LoopContextValue {
   onExplore: (event: ExploreEvent) => void;
   /** node count, for re-rendering the few things that care */
   nodeCount: number;
+  /** §B: the Ringway has faded in */
+  ringwayShown: boolean;
+  /** §C.11: the Next Arc has escalated for the current room */
+  escalated: boolean;
+  /** §C.11: direction of the last deliberate move, for the 442 ms Ion tint */
+  navDir: NavDir;
+  /** §C.5: the notch currently running its 360 ms lock-in, or null */
+  lockIn: string | null;
 }
 
 export const LoopContext = createContext<LoopContextValue | null>(null);
