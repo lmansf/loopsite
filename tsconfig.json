@@ -35,9 +35,14 @@
     "**/*.mts",
     "**/*.ts",
     "**/*.tsx",
+    ".next-trial/types/**/*.ts",
+    ".next-wpa/types/**/*.ts",
+    ".next-wpb/types/**/*.ts",
+    ".next-wpc/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
+    ".next-wpd/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

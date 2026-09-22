@@ -129,15 +129,51 @@ test('four seconds carries a see also link beside every blank', () => {
   __resetCompileCache();
   const fs = CORPUS.accounts.find((a) => a.id === 'four-seconds') as Account;
   const compiled = compileAccount(fs);
-  assert.equal(
-    [...compiled.html.matchAll(/class="see-also"/g)].length,
-    fs.blocks.filter((b) => b.needs).length,
-  );
-  assert.ok(compiled.html.includes('>see also</a>'));
+  const locked = fs.blocks.filter((b) => b.needs);
+  assert.equal([...compiled.html.matchAll(/class="see-also"/g)].length, locked.length);
+
+  // `see also` is the §C.13 string; the LINK is the account that holds the
+  // missing key, named by its own title, so its accessible name is never a
+  // bare `see also` repeated seven times (§C.10, WP-N notes §D.12).
+  const links = [...compiled.html.matchAll(/see also <a href="\/\?s=([a-z-]+)"[^>]*>([^<]+)<\/a>/g)];
+  assert.equal(links.length, locked.length);
+  const titles = new Map(CORPUS.accounts.map((a) => [a.id as string, a.title]));
+  for (const [, slug, text] of links) {
+    assert.equal(text, titles.get(slug as string), `${slug}: the link is not its own title`);
+  }
+  // six of the twelve accounts are named, so the ending is an index
+  assert.ok(new Set(links.map((m) => m[1])).size >= 6);
+
   // and no other account has one
   for (const account of CORPUS.accounts) {
     if (account.id === 'four-seconds') continue;
     assert.ok(!compileAccount(account).html.includes('see-also'), account.id);
+  }
+});
+
+test('a blankWhenLocked block wraps its prose so the blank can be its shape', () => {
+  __resetCompileCache();
+  const fs = CORPUS.accounts.find((a) => a.id === 'four-seconds') as Account;
+  const compiled = compileAccount(fs);
+
+  fs.blocks.forEach((b, i) => {
+    const html = compiled.blocks[i] as string;
+    // `.rule` draws a line under every line box the sentence makes;
+    // `.hush` takes the sentence out of sight AND out of the accessibility
+    // tree, so a reader who does not hold the key is not read it aloud.
+    assert.ok(html.includes('<span class="rule"><span class="hush">'), `${b.id}: no wrapper`);
+    assert.equal([...html.matchAll(/class="rule"/g)].length, 1);
+    assert.equal([...html.matchAll(/class="hush"/g)].length, 1);
+    // the see also sits OUTSIDE the hidden sentence, or it would be hidden too
+    assert.ok(html.indexOf('class="see-also"') > html.indexOf('</span></span>'), b.id);
+  });
+
+  // every other account is plain prose: no wrapper, no cost
+  for (const account of CORPUS.accounts) {
+    if (account.blankWhenLocked) continue;
+    const html = compileAccount(account).html;
+    assert.ok(!html.includes('class="rule"'), account.id);
+    assert.ok(!html.includes('class="hush"'), account.id);
   }
 });
 

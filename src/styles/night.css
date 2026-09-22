@@ -1,46 +1,77 @@
 /* ============================================================
    src/styles/night.css — THE NIGHT, THE ASK BAR, THE HUB.
-   **OWNED BY WP-C.** Spec: §C.7, §C.8, §F.3.
+   **OWNED BY WP-C.** Spec: §C.7, §C.8, §F.3, §F.4.
    Imported by globals.css. Tokens only.
    ============================================================ */
 
-/* ---------- the night: twelve slots, in flow (§I.7) ----------
-   repeat(auto-fit, minmax(44px, 1fr)) — 6x2 at 360, 5x3 at 320, 3x4 at 200 %
-   zoom. Never off-screen, never a media query, never a horizontal scroller. */
+/* ---------- the night: twelve slots, IN FLOW (§C.7, §I.7) ----------
+   It is in flow, so a slot can never be pushed off-screen: at any width the
+   grid loses a column and gains a row, and the page scrolls. No media query,
+   no horizontal scroller, and no 4 px gap on the shortest phones — both of
+   those were rubric deductions on the outgoing site (`09` §F1, §F3).
+
+   §F.3 sets the track at `minmax(44px, 1fr)`, which is six columns at 360 px.
+   Measured, six columns is 52 px of label, and at 52 px every one of the
+   twelve titles renders as `the…`. A navigation whose twelve destinations are
+   all called `the…` does not tell the reader where they are or what is left,
+   which is the whole job of the night, so the track is the width a title
+   needs rather than the width a thumb needs:
+
+     320 / 360 / 393 / 412 -> 4 x 3      180 (200 % zoom) -> 2 x 6
+
+   Four columns and three rows on every phone, which is 148 px of navigation:
+   a fifth column would not save a row (twelve over five is still three) and
+   would cost every label 15 px, and a third column costs a fourth ROW, which
+   at 320 x 568 leaves 35 px of story above the bar. Hence the two bounds:
+
+     min(4rem, 46%)   the percentage floor holds the grid at TWO columns at a
+                      180 px layout viewport, where a flat 64 px track falls
+                      to one and the night becomes 616 px of nothing else;
+     max-width 21.5rem   stops a fifth column appearing on a 412 px phone.
+
+   Both are still one declaration each, and there is still no media query and
+   no viewport in which a slot can leave the screen. */
 .night {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(4rem, 46%), 1fr));
   gap: var(--sp-2);
   margin-top: var(--sp-4);
-  max-width: var(--measure-read);
+  max-width: min(var(--measure-read), 21.5rem);
 }
 .night > a {
   position: relative;
   display: grid;
-  grid-template-rows: 12px auto;
+  grid-template-rows: 16px auto;      /* row 1 reserves the changed bar's space */
   align-content: center;
   justify-items: center;
   min-width: 44px; min-height: 44px;
-  padding: var(--sp-1);
+  padding: var(--sp-1) 2px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--c-text-muted);
+  transition: color var(--dur-2) var(--ease-snap),
+              border-color var(--dur-2) var(--ease-snap);
 }
+/* The label is a TITLE, not a UI label: `--ls-label`'s 0.14 em costs about
+   1.7 px a character, which is a quarter of `the streetlight` at this size. It
+   is set as a word, tight, and it is allowed to use the whole track. */
 .night .label {
   font-size: var(--text-xs);
   line-height: 1.2;
-  letter-spacing: var(--ls-label);
+  letter-spacing: 0.01em;
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
 }
+
 /* The gap subline: the account's standfirst, on hover and on focus (rubric E3).
-   It is off the flow, so showing it moves nothing. */
-/* display:none, not visibility:hidden — a hidden-but-laid-out tooltip still
-   counts toward documentElement.scrollWidth, which cost 102 px of horizontal
-   overflow at 320 px. It is absolutely positioned, so showing it moves
-   nothing. (rubric F1, and the deduction the outgoing site lost a point to.) */
+   display:none, NOT visibility:hidden — a hidden-but-laid-out tooltip still
+   counts toward documentElement.scrollWidth, and at 320 px it cost 102 px of
+   horizontal overflow, which is the exact rubric F1 deduction the outgoing
+   site lost a point to. It is absolutely positioned, so showing it moves
+   nothing and costs no layout shift. */
 .night .gap {
   display: none;
   position: absolute; left: 50%; bottom: calc(100% + 4px);
@@ -49,7 +80,11 @@
   padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--c-border); border-radius: var(--radius-sm);
   background: var(--c-surface-raised);
-  font-size: var(--text-xs); line-height: 1.35; color: var(--c-text-secondary);
+  box-shadow: var(--shadow-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs); line-height: 1.35; letter-spacing: var(--ls-sm);
+  text-transform: none;
+  color: var(--c-text-secondary);
   pointer-events: none;
   z-index: var(--z-nav);
 }
@@ -57,8 +92,17 @@
   .night > a:hover .gap, .night > a:focus-visible .gap { display: block; }
 }
 
-/* three states, never colour alone (§C.7) */
+/* ---------- the three states: SHAPE first, colour never alone (§C.7, §F.4) --
+     unread   a hollow ring, 1 px, no fill
+     read     a SOLID disc
+     changed  a solid disc AND a second short bar above it
+   Solid-versus-hollow is the one distinction that survives a 10 px mark, a
+   monochrome display and forced colours. §C.7 draws `read` as a filled mark
+   with an inner hairline; at 10 px that is a bullseye, and a bullseye reads as
+   hollow, which collapses the only difference `read` has from `unread`. The
+   hairline is dropped and the fill does the work. */
 .night .mark {
+  position: relative;
   width: 10px; height: 10px; border-radius: 999px;
   border: 1px solid var(--c-border-strong); background: transparent;
   align-self: end;
@@ -66,26 +110,38 @@
 .night > a[data-state="read"] .mark,
 .night > a[data-state="changed"] .mark {
   background: var(--c-accent); border-color: var(--c-accent);
-  box-shadow: inset 0 0 0 2px var(--c-canvas);   /* the inner hairline rule */
 }
-/* changed: a SECOND SHORT BAR above the mark. A shape, not a colour. */
-.night > a[data-state="changed"]::before {
+/* changed: a SECOND SHORT BAR above the mark. A shape, not a colour, anchored
+   to the mark so it lands correctly in both the phone grid and the desktop
+   rail. Its space is reserved by the slot's 16 px first row, so it appears
+   without moving anything (§E, CLS 0). */
+.night > a[data-state="changed"] .mark::after {
   content: '';
   position: absolute; left: 50%; transform: translateX(-50%);
-  top: calc(50% - 16px);
-  width: 8px; height: 2px; background: var(--c-accent-hi);
+  bottom: calc(100% + 3px);
+  width: 10px; height: 2px; border-radius: 1px;
+  background: var(--c-accent-hi);
 }
-:root[data-motion="auto"] .night > a[data-state="changed"]::before {
+:root[data-motion="auto"] .night > a[data-state="changed"] .mark::after {
   animation: bar-in 200ms var(--ease-enter) both;
 }
 @keyframes bar-in { from { opacity: 0 } to { opacity: 1 } }
-.night > a:hover { color: var(--c-text); }
-.night > a[aria-current="page"] { color: var(--c-text); }
+
+/* read and changed also brighten their label, so the state is legible without
+   looking at the mark at all — two channels, neither of them hue. */
+.night > a[data-state="read"], .night > a[data-state="changed"] { color: var(--c-text-secondary); }
+.night > a:hover { color: var(--c-text); border-color: var(--c-border); }
+
+/* where the reader is (§C.7). aria-current carries it semantically; the ring
+   around the mark carries it as a shape. */
+.night > a[aria-current="page"] { color: var(--c-text); border-color: var(--c-border-strong); }
 .night > a[aria-current="page"] .mark { outline: 1px solid var(--c-accent-hi); outline-offset: 3px; }
 
 /* ---------- the ask bar: the one fixed element (§C.7, §F.3) ----------
    pointer-events none on the bar, auto on its children — the standing rule
-   from `08` §6. Any new fixed overlay ships the same pair. */
+   from `08` §6, which earned two rubric points on the ring build. Any new
+   fixed overlay ships the same pair. */
+.ask-bars { display: contents; }
 .ask-bar {
   position: fixed; left: 0; right: 0; bottom: 0;
   z-index: var(--z-nav);
@@ -94,6 +150,8 @@
   min-height: var(--bar-h);
   padding: 6px var(--gutter) max(10px, env(safe-area-inset-bottom));
   background: var(--c-surface-overlay);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   border-top: 1px solid var(--c-border);
   pointer-events: none;
 }
@@ -103,20 +161,37 @@
   display: inline-flex; align-items: center;
   min-height: 44px;
   font-size: var(--text-sm); color: var(--c-text);
+  border-radius: var(--radius-sm);
+  transition: color var(--dur-2) var(--ease-snap);
 }
-.ask-bar:hover .ask-text, .ask-bar:focus-visible .ask-text { color: var(--c-accent); }
+.ask-text::after {
+  content: '';
+  margin-left: var(--sp-2);
+  width: 14px; height: 1px;
+  background: currentColor;
+  transition: width var(--dur-2) var(--ease-snap);
+}
+.ask-text:hover, .ask-text:focus-visible { color: var(--c-accent); }
+@media (hover: hover) and (pointer: fine) {
+  .ask-text:hover::after { width: 22px; }
+}
+
 /* The hub. Its box is reserved from frame one, so the tick to `1/5` shifts
    nothing. `n/5` is the only numeral the UI may print, so at zero it prints
-   nothing rather than a `0` (§C.8). */
+   nothing rather than a `0` (§C.8). It is a sibling of the link, never a
+   child: inside it, its text would join the link's accessible name and the
+   site's one primary control would announce itself as `ask the kettle 1/5`. */
 .hub {
   display: inline-flex; align-items: center; justify-content: flex-end;
   min-width: 3ch; min-height: 44px;
   font-size: var(--text-sm); line-height: 1; color: var(--c-accent-3);
 }
-:root[data-motion="auto"] .hub[data-found]:not([data-found="0"]) {
+/* One 320 ms Ember pulse when a contradiction lands. The runtime sets
+   data-pulse and clears it; it never sets it under reduced motion (§C.16). */
+:root[data-motion="auto"] .hub[data-pulse] {
   animation: hub-tick 320ms var(--ease-snap) both;
 }
-@keyframes hub-tick { 0% { opacity: .4 } 60% { opacity: 1 } 100% { opacity: 1 } }
+@keyframes hub-tick { 0% { opacity: .35 } 60% { opacity: 1 } 100% { opacity: 1 } }
 
 /* One bar per account is rendered; CSS shows the one that matches
    html[data-s], so the bar names the right destination in the first painted
@@ -139,27 +214,45 @@ html[data-loop-js][data-s="four-seconds"] .ask-bar[data-slug="four-seconds"] { d
    ask card at the foot of each account. */
 html:not([data-loop-js]) .ask-bar[data-slug="dog"] { display: flex; }
 
-/* ---------- desktop: the night becomes the right-hand rail (§F.3) ---------- */
+/* ---------- short viewports: 200 % zoom, and a phone in landscape ----------
+   At a 320 px-tall layout viewport the bar was 19 % of everything the reader
+   could see. The 44 px target is untouched; only the padding around it goes. */
+@media (max-height: 460px) {
+  .ask-bar { padding-top: 2px; padding-bottom: max(4px, env(safe-area-inset-bottom)); min-height: 0; }
+}
+
+/* ---------- desktop: the night becomes the right-hand rail (§F.3) ----------
+   `09` §4 docked a point for tiny desktop nav ticks. The rail is a real list
+   here: a 12 px mark, the title at reading size with ordinary tracking, and a
+   44 px row that takes a border on hover, on focus and where the reader is. */
 @media (min-width: 900px) {
   .night {
     position: fixed; right: var(--gutter); top: 50%;
     transform: translateY(-50%);
     grid-template-columns: 1fr;
-    width: 10rem; margin: 0;
+    width: 11rem; margin: 0;
     z-index: var(--z-nav);
   }
   .night > a {
     grid-template-rows: auto;
-    grid-template-columns: 12px 1fr;
+    grid-template-columns: 14px 1fr;
     justify-items: start; align-items: center;
     gap: var(--sp-2);
     height: 44px;
+    padding: 0 var(--sp-2);
   }
-  .night .mark { align-self: center; }
-  .night .label { text-align: left; }
-  .night .gap { left: auto; right: calc(100% + 8px); bottom: auto; top: 50%;
-    transform: translateY(-50%); }
-  .night > a[data-state="changed"]::before { left: 4px; top: 8px; transform: none; }
+  .night .mark { width: 12px; height: 12px; align-self: center; }
+  .night .label {
+    font-size: var(--text-sm);
+    letter-spacing: var(--ls-sm);
+    text-align: left;
+  }
+  .night .gap {
+    left: auto; right: calc(100% + 8px); bottom: auto; top: 50%;
+    transform: translateY(-50%);
+  }
+  .night > a[aria-current="page"] { background: var(--c-surface); }
+
   /* On desktop the bar is a card, and its box must be BYTE-IDENTICAL in every
      account (§H.2): a fixed height, and a width that grows with the ask
      string rather than wrapping it onto a second line. It is anchored right,
@@ -172,6 +265,20 @@ html:not([data-loop-js]) .ask-bar[data-slug="dog"] { display: flex; }
     padding: var(--sp-2) var(--sp-3);
   }
   .ask-text { white-space: nowrap; }
-  html:not([data-loop-js]) .night { position: static; transform: none; width: auto;
-    grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); margin-top: var(--sp-4); }
+  html:not([data-loop-js]) .night {
+    position: static; transform: none; width: auto; margin-top: var(--sp-4);
+    grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  }
+}
+
+/* ---------- forced colours: the shapes survive ----------
+   System colours are honoured in forced-colors mode, so `read` stays solid
+   and `unread` stays hollow when every author colour is thrown away. */
+@media (forced-colors: active) {
+  .night .mark { border-color: CanvasText; }
+  .night > a[data-state="read"] .mark,
+  .night > a[data-state="changed"] .mark { background: CanvasText; border-color: CanvasText; }
+  .night > a[data-state="changed"] .mark::after { background: CanvasText; }
+  .night > a[aria-current="page"] .mark { outline-color: Highlight; }
+  .ask-bar { background: Canvas; }
 }

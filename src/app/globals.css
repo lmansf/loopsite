@@ -64,8 +64,17 @@
   --text-body:    clamp(1rem, 0.96rem + 0.19vw, 1.125rem);
   --text-sm:      clamp(0.875rem, 0.86rem + 0.09vw, 0.9375rem);
   --text-xs:      0.75rem;
-  /* the premise, §F.1: two lines, the LCP element */
-  --text-premise: clamp(1.5rem, 1.18rem + 1.42vw, 2.25rem);
+  /* The premise, §F.1: the LCP element. §F.1 floors it at 1.5rem; measured,
+     that floor costs 113 px of headline at 320 px and 227 px at a 180 px
+     layout viewport (200 % zoom), where 24 px type is eight lines of heading
+     before a word of the story and the first block is off the screen. The
+     floor moves to 1.375rem and the slope steepens, which is 78 px of premise
+     at 360 and 182 px instead of 227 at 200 % zoom.
+     `src/styles/read.css` (WP-A) sets the same clamp on `#main > #loop-title`,
+     which is the more specific selector and therefore the one that wins. The
+     two are deliberately identical so the premise has one size and not two;
+     this token is what `not-found` and any future use of --text-premise get. */
+  --text-premise: clamp(1.375rem, 1.05rem + 1.35vw, 2.25rem);
   /* block prose, §F.1: 17 px … 19 px at 1.62 */
   --text-read:    clamp(1.0625rem, 1.02rem + 0.28vw, 1.1875rem);
 
@@ -212,7 +221,13 @@ p { text-wrap:pretty; }
    to the one selected account with zero reflow — §C.1, §E.
    ============================================================ */
 
-#main { position:relative; padding:var(--sp-6) var(--gutter) 0; }
+/* The reading frame. `z-index` puts it above the ambient layer, which is the
+   only thing on the site behind it. The top padding steps down twice, because
+   on a 568 px phone every pixel above the first paragraph is a pixel of the
+   story the reader does not arrive in. */
+#main { position:relative; z-index:var(--z-read); padding:var(--sp-5) var(--gutter) 0; }
+@media (max-height:620px) { #main { padding-top:var(--sp-4); } }
+@media (min-width:900px)  { #main { padding-top:var(--sp-6); } }
 
 /* The premise. Two lines, the LCP element, PAINTED (not faded from zero) in
    frame one and settling to full over --dur-6 after a 300 ms beat — `06` §G,
@@ -288,6 +303,33 @@ html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) summa
 /* the belief choice is a control, not a sentence: it hides like any other
    locked block even inside the account that blanks them. */
 html[data-loop-js] #section-four-seconds .blk.choice:not([data-held]) { display:none; }
+
+/* ============================================================
+   THE AMBIENT LAYER (§C.16, §D.3, §D.4)
+   One canvas for the whole site, fixed, decorative, aria-hidden,
+   out of flow — so it has no intrinsic size to guess at and can
+   never shift anything. It is the FIRST thing to go if the perf
+   gate is ever tight: nothing functional, accessible or
+   narrative depends on it.
+   ============================================================ */
+#ambient {
+  position:fixed; inset:0; z-index:var(--z-bg);
+  width:100%; height:100%;
+  pointer-events:none;
+  /* Restraint, enforced by the layer rather than by each figure: the mask
+     holds the figure back to a third of its strength across the middle of the
+     screen, which is exactly where the reading column is, and lets it up only
+     out at the edges. Behind a line of prose the figure is under 3 % alpha. */
+  -webkit-mask-image:radial-gradient(125% 95% at 50% 46%,
+    rgb(0 0 0 / .30) 0%, rgb(0 0 0 / .32) 34%, rgb(0 0 0 / 1) 88%);
+          mask-image:radial-gradient(125% 95% at 50% 46%,
+    rgb(0 0 0 / .30) 0%, rgb(0 0 0 / .32) 34%, rgb(0 0 0 / 1) 88%);
+}
+/* A reader who has asked for less has already said what they want from a
+   moving background. The still is still drawn — it is a composition, not an
+   animation — but it is drawn quieter. */
+:root[data-motion="reduce"] #ambient { opacity:.7; }
+@media (forced-colors: active) { #ambient { display:none; } }
 
 /* ---------- reduced motion: the calm variant, never nothing ---------- */
 @media (prefers-reduced-motion: reduce) {

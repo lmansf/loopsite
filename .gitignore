@@ -41,3 +41,8 @@ next-env.d.ts
 /.claude/worktrees/
 
 /.next-trial/
+
+# per-agent scratch builds and configs
+/.next-wp*/
+/playwright.wp*.config.ts
+/test-results-*/

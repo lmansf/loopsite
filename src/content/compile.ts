@@ -28,8 +28,9 @@
  * byte cost.
  */
 
-import type { Account, Aside, Block } from './schema.ts';
+import type { Account, AccountId, Aside, Block } from './schema.ts';
 import { EMITTERS } from '../lib/knowledge.ts';
+import { CORPUS } from './accounts.ts';
 
 const ESCAPES: Record<string, string> = {
   '&': '&amp;',
@@ -87,27 +88,41 @@ function compileBlockElement(account: Account, block: Block): string {
   const needs = block.needs ? ` data-needs="${attr(block.needs)}"` : '';
   const belief = block.belief ? ` data-belief="${attr(block.belief)}"` : '';
   const body = compileBlock(block, account.asides);
-  const seeAlso = account.blankWhenLocked && block.needs ? seeAlsoLink(block.needs) : '';
+  const blank = account.blankWhenLocked === true && block.needs !== undefined;
   return (
     `<div class="blk" role="paragraph" data-id="${attr(block.id)}"${needs}${belief}>` +
-    body +
-    seeAlso +
+    (blank ? `<span class="rule"><span class="hush">${body}</span></span>` : body) +
+    (blank ? seeAlsoLink(block.needs as string) : '') +
     `</div>`
   );
 }
 
+/** account id -> the account's own title, for the `see also` links. */
+const TITLES: ReadonlyMap<string, string> = new Map(
+  CORPUS.accounts.map((a) => [a.id as string, a.title]),
+);
+
 /**
- * `see also` beside a blank rule in `four seconds` (§C.10) — a real link to
- * the account that emits the missing key. The visible string is the one fixed
- * in §C.13; the account's own title rides along for the accessibility tree, so
- * the link is never a bare `see also` to a screen reader.
+ * `see also`, and the account that holds the missing key, beside a blank rule
+ * in `four seconds` (§C.10). A real link, with the account's own title as its
+ * text, so its accessible name is `the switch` and never a bare `see also`
+ * repeated seven times. Both strings are lawful: `see also` is the §C.13 entry
+ * the concept fixes for exactly this place, and the title is the corpus's.
+ *
+ * This is the answer to the empty-handed reader. A reader who arrives at
+ * `four seconds` holding nothing gets the heading, the standfirst, seven
+ * blanks in the shape of the sentences they did not ask for, and seven ways
+ * back into the accounts that hold them — naming six of the twelve. The
+ * ending is an index of what is missing, which is the strongest open loop the
+ * site can draw, and it is drawn without one invented word.
  */
 function seeAlsoLink(key: string): string {
-  const emitter = EMITTERS.get(key);
-  if (!emitter) return '';
+  const emitter = EMITTERS.get(key) as AccountId | undefined;
+  const title = emitter ? TITLES.get(emitter) : undefined;
+  if (!emitter || !title) return '';
   return (
-    `<span class="see-also" data-for="${attr(key)}">` +
-    `<a href="/?s=${attr(emitter)}" data-slot="${attr(emitter)}">see also</a>` +
+    `<span class="see-also" data-for="${attr(key)}">see also ` +
+    `<a href="/?s=${attr(emitter)}" data-slot="${attr(emitter)}">${escapeHtml(title)}</a>` +
     `</span>`
   );
 }

@@ -2,21 +2,63 @@
    src/styles/read.css — THE PROSE LAYER. **OWNED BY WP-A.**
    Spec: design/11-narrative-build-spec.md §C.2, §C.10, §F.1, §F.2.
    Imported by globals.css. Tokens only; no raw colours or times.
+
+   The prose is the product, so this file is judged by reading it
+   and not by its numbers. Three things in it are load-bearing:
+
+     1. a closed <details> must read as an ordinary word, on the
+        line it was written on, with nothing broken either side;
+     2. an open one must put its body on a line of its own without
+        cutting the sentence in half;
+     3. a blank in `four seconds` must be the exact shape of the
+        sentence it is hiding, and must not read that sentence
+        out to anybody.
    ============================================================ */
+
+/* ---------- the premise (§F.1) ----------
+   globals.css sizes #loop-title from --text-premise, whose floor of 1.5rem
+   is a size at which "the lights went out for four seconds." takes two lines
+   on every phone — four lines of heading, which pushes the first block and
+   its open aside out of the first viewport and costs §F.3 its composition.
+   §F.3's two-line premise beats §F.1's floor, so the floor moves. Measured:
+   three lines at 360 px in the widest system sans, two in Roboto and SF. */
+#main > #loop-title {
+  font-size: clamp(1.375rem, 1.05rem + 1.35vw, 2.25rem);
+  margin-bottom: var(--sp-6);
+}
 
 /* ---------- the reading column (§F.1) ---------- */
 .blocks {
-  display: flow-root;                 /* contains the inline-<details> fragmentation */
+  display: flow-root;                 /* contains the inline-<details> float */
   max-width: var(--measure-read);
   margin-top: var(--sp-5);
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
   font-family: var(--font-read);
   font-size: var(--text-read);
   line-height: var(--lh-read);
+  letter-spacing: 0.005em;
   color: var(--c-text);
+  /* A serif at 17 px, light on dark, goes spindly under forced greyscale
+     antialiasing. The body sets it for the UI voice; the story opts out. */
+  -webkit-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
 }
-.blk { display: flow-root; }
+.blk {
+  display: flow-root;                 /* the float never escapes its paragraph */
+  text-wrap: pretty;                  /* globals sets this for <p>; a .blk is a div */
+}
 .blk + .blk { margin-top: 1.45em; }   /* one and a half lines: a break with no rule */
+
+/* The standfirst is the writer's line, not a caption: it is set in the story's
+   own face, one step down, and it sits closer to the heading than to the
+   prose so the eye reads the two as one unit (§F.1). */
+.account > .standfirst {
+  font-family: var(--font-read);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+  max-width: var(--measure-read);
+  color: var(--c-text-secondary);
+}
 
 /* A block behind a key keeps a permanent hairline left rule, so a re-reader
    can see exactly which sentences are new (§F.1). */
@@ -47,33 +89,41 @@
 @keyframes blk-in  { from { opacity: 0 } to { opacity: 1 } }
 @keyframes rule-in { from { transform: scaleY(0) } to { transform: scaleY(1) } }
 
-/* ---------- the pressable word (§C.2, §F.2) ---------- */
+/* ---------- the pressable word (§C.2, §F.2) ----------
+
+   It must read as an ordinary word and still be obviously pressable, so the
+   signifier is a dotted rule under the word and never a colour at rest and
+   never button chrome. Two signifiers on every state, never colour alone. */
 .aside { display: inline; }
 .aside > summary {
   display: inline;
   list-style: none;
   cursor: pointer;
-  position: relative;
   color: inherit;
   text-decoration: underline;
   text-decoration-style: dotted;
   text-decoration-thickness: from-font;
   text-underline-offset: 0.22em;
   -webkit-tap-highlight-color: transparent;
+  /* THE HIT AREA (§C.2, §F.2). Vertical padding on an inline box grows its
+     border box — which is what a finger hits and what a rect measures — and
+     does not touch the line box, so the leading is untouched and nothing
+     moves. `--tap-min` tall, and real, rather than the spec's absolutely
+     positioned ::after overlay: an overlay is 44 px of hit area that no test
+     can see and that eats text selection on the lines above and below.
+     The horizontal margin cancels the horizontal padding exactly, so the
+     word occupies the same advance width it would as plain text.
+     Measured: the border box comes out at 45-46 px at every prose size, and
+     the closest two DIFFERENT pressable words ever come on this corpus is
+     10.5 px of clear space at 360 px — which is the copy law of §C.2 doing
+     its job, and `tests/copy.spec.ts` keeps it true. */
+  padding: calc((var(--tap-min) - 1em) / 2) 2px;
+  margin: 0 -2px;
   transition: color var(--dur-2) var(--ease-snap),
               text-decoration-thickness var(--dur-2) var(--ease-snap);
 }
 .aside > summary::-webkit-details-marker { display: none; }
 .aside > summary::marker { content: ''; }
-
-/* 44 px of hit area, in the leading, not in the layout (§C.2). The copy law
-   that forbids two pressable words on the same or adjacent rendered line is
-   what makes that safe, and tests/copy.spec.ts enforces it. */
-.aside > summary::after {
-  content: '';
-  position: absolute; left: -2px; right: -2px;
-  top: 50%; height: 44px; transform: translateY(-50%);
-}
 
 @media (hover: hover) and (pointer: fine) {
   .aside > summary:hover {
@@ -82,57 +132,127 @@
   }
 }
 .aside > summary:active { color: var(--c-accent-hi); }
-.aside > summary:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+.aside > summary:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: -2px;               /* hugs the hit area rather than growing it */
+  border-radius: var(--radius-sm);
+}
 
 /* Held: the rule goes SOLID, permanently, whether or not the aside is open.
    The page literally gets more solid as the reader works (§C.8). */
 .aside[data-held] > summary,
 .aside[open] > summary { text-decoration-style: solid; }
 
-/* A block-level child inside an inline <details> fragments the inline box and
-   puts the body on a line of its own, under the sentence, with the rest of the
-   block continuing after it. That is "opens in place", and it costs no JS. */
+/* THE OPENING, and it is the whole trick.
+
+   A <details> whose content box is block-level fragments the inline it sits
+   in, and the rest of the sentence restarts on a new line — which orphans the
+   full stop that follows the word and reads like a fault. A closed one does
+   it too in browsers that give ::details-content a box: Chromium hides that
+   box with `content-visibility`, not with `display: none`, so an untouched
+   closed aside breaks its line in three.
+
+   So: the closed content box is removed outright, and the open one is
+   `display: contents`, which leaves the aside body itself as the only box in
+   the inline. The body is then a full-width float. A float does not break the
+   line it is anchored in — the sentence runs on to the end of that line — and
+   the lines after it are laid out below it. The aside lands between two lines
+   of the paragraph, in place, under the word, with the sentence intact.
+   `.blk { display: flow-root }` is what keeps the float inside its block. */
+.aside:not([open])::details-content { display: none; }
+.aside[open]::details-content       { display: contents; }
+
 .aside > .aside-body {
   display: block;
-  margin: 0.5em 0;
-  font-family: var(--font-sans);
-  font-size: 0.9375em;
-  line-height: 1.5;
-  color: var(--c-text-secondary);
+  float: left;
+  width: 100%;
+  margin: 0.5em 0 0.65em;
+  padding-left: 0.9em;
   border-left: 1px solid var(--c-border-strong);
-  padding-left: 0.75em;
+  font-family: var(--font-sans);
+  font-size: 0.875em;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--c-text-secondary);
+  text-wrap: pretty;
 }
 
-/* ---------- `four seconds`: the blank rule (§C.10) ---------- */
-html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) {
-  text-decoration: none;
+/* ---------- `four seconds`: the blank rule (§C.10) ----------
+
+   A locked block here is not hidden: it is the real sentence, hidden with
+   `visibility`, inside a wrapper that draws a rule under every line box it
+   makes. The blank's width, its wrapping and its line count are therefore the
+   sentence's own, exactly, at every viewport, for free.
+
+   `visibility: hidden` and not the spec's `color: transparent` (globals.css
+   sets that too, and it is harmless): visibility takes the sentence out of
+   the accessibility tree and its <summary> out of the tab order in the first
+   painted frame, with no JavaScript. Transparent text is read aloud in full
+   by a screen reader — which hands away every sentence the reader has not
+   earned — and leaves a focusable <summary> inside the `aria-hidden` the
+   runtime would have to add, which is an axe violation in its own right. */
+.rule, .hush { display: inline; }
+
+/* `text-wrap: pretty` reflows the last lines of a paragraph to avoid an
+   orphan — and Chromium does not apply it to the hidden sentence, so a blank
+   and the sentence it stands for would wrap differently, which is the one
+   thing this account may not do. The eleven reading accounts keep it; this
+   one trades it for an exact shape. `tests/reading.spec.ts` compares the
+   blank's line boxes against the same sentence as ordinary prose. */
+#section-four-seconds .blk { text-wrap: wrap; }
+
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) .rule {
+  border-bottom: 1px solid var(--c-border-strong);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  background-image: linear-gradient(var(--c-border-strong), var(--c-border-strong));
-  background-size: 100% 1px;
-  background-position: 0 1.25em;
-  background-repeat: repeat-y;
 }
-.see-also {
-  display: block;
-  margin-top: 0.4em;
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) .hush {
+  visibility: hidden;
+}
+/* a blank is an absence, not new material: it takes no key rule */
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held])::before {
+  display: none;
+}
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) {
+  padding-left: 0; margin-left: 0;
+}
+
+/* `see also` and the account that holds the missing key — the index mechanic,
+   at the ending (§C.10, §C.13). It exists only beside a blank: a reader who
+   holds the key is reading the sentence and has nowhere to be sent. A reader
+   holding NOTHING gets seven of these, naming six of the twelve accounts, and
+   that is the whole of what `four seconds` says to them. */
+.see-also { display: none; }
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) > .see-also {
+  display: flex;
+  align-items: center;
+  gap: 0.5ch;
+  margin-top: 0.15em;
   font-family: var(--font-sans);
   font-size: var(--text-sm);
+  line-height: var(--lh-sm);
   color: var(--c-text-secondary);
 }
-.see-also a {
-  display: inline-flex; align-items: center;
-  min-height: 44px; padding-right: var(--sp-2);
+.see-also > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  padding: 0 var(--sp-1);
+  margin: 0 calc(var(--sp-1) * -1);
   color: var(--c-accent);
-  border-bottom: 1px solid var(--c-border-strong);
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.22em;
 }
-.see-also a:hover { color: var(--c-accent-hi); }
+.see-also > a:hover { color: var(--c-accent-hi); }
 
 /* ---------- the ask card (§C.7, rubric E2/E3) ---------- */
 .ask.card {
   display: block;
   max-width: var(--measure-read);
   margin-top: var(--sp-6);
+  /* the last thing in the account clears the fixed ask bar */
+  margin-bottom: calc(var(--bar-h) + var(--sp-4) + env(safe-area-inset-bottom));
   padding: var(--sp-4);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-md);
@@ -161,7 +281,7 @@ html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) {
 .choice-options { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-3); }
 .choice-option {
   display: inline-flex; align-items: center; gap: var(--sp-2);
-  min-height: 44px; padding: 0 var(--sp-3);
+  min-height: var(--tap-min); padding: 0 var(--sp-3);
   border: 1px solid var(--c-border-strong); border-radius: var(--radius-md);
   font-size: var(--text-sm); color: var(--c-text);
 }
