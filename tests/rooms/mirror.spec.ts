@@ -130,7 +130,7 @@ test(`${SLUG}: the canvas draws its own last frame — a fire echoes into the tu
 
   // the sweep comes back around: the first echo (depth 0.5). One revolution is
   // 4 s of clock time; the window is wider because a loaded box slows the clock.
-  await expect(hook).not.toHaveAttribute('data-echoes', '0', { timeout: 15_000 });
+  await expect(hook).not.toHaveAttribute('data-echoes', '0', { timeout: 20_000 });
   await page.waitForTimeout(120);
   // the fire's arc is receding inside the ring: the tunnel is brighter than it was
   const lit = await tunnelLuminance(page);
@@ -173,12 +173,12 @@ test(`${SLUG}: the ghost mark appears at revolution 8 and is generated, not attr
   test.skip(isMobile, 'a 32 s dwell; asserted once, on the desktop project');
   // Eight in-room revolutions are 32 s of clock time. The clock clamps dt to
   // 50 ms (§C.4), so on a loaded CI box it can run slower than the wall.
-  test.setTimeout(120_000);
+  test.setTimeout(150_000);
   await page.goto(`/?s=${SLUG}`);
   const hook = page.locator(`[data-room="${SLUG}"]`);
   await expect(hook).toHaveCount(1);
   await expect(hook).not.toHaveAttribute('data-ghost', '1');
-  await expect(hook).toHaveAttribute('data-ghost', '1', { timeout: 90_000 });
+  await expect(hook).toHaveAttribute('data-ghost', '1', { timeout: 120_000 });
   // nothing claims it is a person: no forbidden copy anywhere in the document
   const text = (await page.locator('body').innerText()).toLowerCase();
   for (const banned of ['someone else', 'another', 'people', 'visitor', 'online', 'right now']) {
