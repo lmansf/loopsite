@@ -260,11 +260,25 @@ passes (`design/07`, `08`, `09`). That site has been replaced; the rubric has
 not. It is restated in full at `design/11-narrative-build-spec.md` §H.4 and the
 threshold is unchanged: **≥ 92 with zero Category H penalties**.
 
-At the WP-N skeleton:
+| Audit pass | Score | Result |
+|---|---|---|
+| 1 (`design/13-bounce-audit-narrative.md`) | 93 / 100 | cleared by one point; six fixes prescribed |
+| 2 (`design/14-bounce-audit-narrative-2.md`) | **99 / 100** | zero penalties, all hard gates passed |
+
+The one deduction pass 2 found — the prerendered night marked the landing
+account as read on every route, so a scripting-off reader arriving at `/s/road`
+was told `the dog — read` — has since been fixed: each night marks its own
+account.
+
+Verified on that build:
 
 | Gate | Result |
 |---|---|
-| `pnpm verify` | green — 47 unit · 141 e2e · 8 a11y |
-| bytes (gzip) | Tier A 8.4 KB · Tier B 7.7 KB · Tier C 146.2 KB · document 29.4 KB · flight 15.8 KB · fonts 0 · rasters 0 |
+| `pnpm verify` | green — 96 unit · 362 e2e · 48 a11y, zero failures |
+| Lighthouse mobile (3-run median) | performance 99 · accessibility 100 · best practices 100 · SEO 100 · FCP = LCP 906 ms · TBT 65 ms · TTI 2.0 s · CLS 0 |
+| bytes (gzip) | render-blocking 9.1 KB · first-party JS 12.1 KB · total JS 150.5 KB · document 31.1 KB · inline RSC 16.6 KB · fonts 0 · images 0 · third-party 0 |
 
-The four builders take it from there.
+What the auditor would still watch, in its own words: the hook is a dotted
+underline on an ordinary word, which is the quietest affordance this project
+has shipped; the night's reaction to a press is honest but small at 10 × 2 px;
+and a 320 px phone still spends 380 of its 568 px before the story starts.
