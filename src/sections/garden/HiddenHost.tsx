@@ -34,6 +34,8 @@ import styles from './room.module.css';
 
 /** the hero must be reactive first; the hidden layer can wait a beat */
 const MOUNT_DELAY_MS = 1200;
+/** …and then for an idle moment, so mounting never steals a frame from the ring */
+const IDLE_TIMEOUT_MS = 3000;
 /** how often the share-code mirror is refreshed, in clock ms */
 const MIRROR_MS = 250;
 
@@ -51,8 +53,23 @@ export function HiddenHost() {
   const hostRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const id = setTimeout(() => setRoot(document.getElementById('stage')), MOUNT_DELAY_MS);
-    return () => clearTimeout(id);
+    let alive = true;
+    let idle = 0;
+    const mount = () => {
+      if (alive) setRoot(document.getElementById('stage'));
+    };
+    const id = setTimeout(() => {
+      if (typeof window.requestIdleCallback === 'function') {
+        idle = window.requestIdleCallback(mount, { timeout: IDLE_TIMEOUT_MS });
+      } else {
+        mount();
+      }
+    }, MOUNT_DELAY_MS);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+      if (idle && typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(idle);
+    };
   }, []);
 
   useEffect(() => {

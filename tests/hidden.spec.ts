@@ -60,11 +60,19 @@ async function expectFlag(page: Page, flag: 'reverse' | 'slow', value: boolean):
 const marker = (page: Page, id: string) => page.locator(`[data-hidden="${id}"]`);
 const SLOW_EXPECT = { timeout: 15_000 };
 
+/** The hidden layer mounts after the hero has settled; wait for all five. */
+async function hiddenReady(page: Page): Promise<void> {
+  for (const id of ['silence', 'reverse', 'slow', '144', 'twin']) {
+    await marker(page, id).waitFor({ state: 'attached', timeout: 15_000 });
+  }
+}
+
 /* ------------------------------------------------------------ ordinary use */
 
 test('no hidden destination fires during 90 s of ordinary use', async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto('/');
+  await hiddenReady(page);
   const stage = page.locator('#stage');
   await stage.focus();
   const started = Date.now();
@@ -169,6 +177,7 @@ test('no hidden destination fires during 90 s of ordinary use', async ({ page })
 
 test('SILENCE: an empty ring for one revolution, and any tap restores it exactly', async ({ page }) => {
   await page.goto('/');
+  await hiddenReady(page);
   const stage = page.locator('#stage');
   await stage.focus();
   for (let i = 0; i < 3; i++) {
@@ -199,6 +208,7 @@ test('SILENCE: an empty ring for one revolution, and any tap restores it exactly
 
 test('SILENCE: reached by removing every node, the first tap restores instead of placing', async ({ page }) => {
   await page.goto('/');
+  await hiddenReady(page);
   const stage = page.locator('#stage');
   await stage.focus();
   for (let i = 0; i < 3; i++) {
@@ -229,6 +239,7 @@ test('SILENCE: reached by removing every node, the first tap restores instead of
 
 test('REVERSE: drag the head backwards 340°, it persists, Shift+← held undoes it', async ({ page }) => {
   await page.goto('/');
+  await hiddenReady(page);
   await page.locator('#stage').focus();
   await loopCode(page);
   await expect(marker(page, 'reverse')).toHaveAttribute('data-on', 'false');
@@ -304,6 +315,7 @@ test('REVERSE: drag the head backwards 340°, it persists, Shift+← held undoes
 
   // persists across a reload
   await page.reload();
+  await hiddenReady(page);
   await page.locator('#stage').focus();
   await expect(marker(page, 'reverse')).toHaveAttribute('data-on', 'true', SLOW_EXPECT);
   await expectFlag(page, 'reverse', true);
@@ -325,6 +337,7 @@ test('REVERSE: drag the head backwards 340°, it persists, Shift+← held undoes
 
 test('SLOW: Shift+S, it persists, a hold at the centre undoes it', async ({ page }) => {
   await page.goto('/');
+  await hiddenReady(page);
   const stage = page.locator('#stage');
   await stage.focus();
   await loopCode(page);
@@ -339,6 +352,7 @@ test('SLOW: Shift+S, it persists, a hold at the centre undoes it', async ({ page
 
   // persists across a reload
   await page.reload();
+  await hiddenReady(page);
   await stage.focus();
   await expect(marker(page, 'slow')).toHaveAttribute('data-on', 'true', SLOW_EXPECT);
   await expectFlag(page, 'slow', true);
@@ -385,6 +399,7 @@ test('144: twelve visits to all twelve rooms turns the ring into a clock face', 
     { key: STORAGE_KEY, visits, rooms },
   );
   await page.goto('/');
+  await hiddenReady(page);
   await expect(marker(page, '144')).toHaveAttribute('data-on', 'true', SLOW_EXPECT);
   expect(await collected(page)).toContain('144');
 
@@ -411,6 +426,7 @@ test('144: eleven visits are not twelve', async ({ page }) => {
     { key: STORAGE_KEY, visits, rooms },
   );
   await page.goto('/');
+  await hiddenReady(page);
   await expect(marker(page, '144')).toHaveAttribute('data-on', 'false', SLOW_EXPECT);
   await page.waitForTimeout(2500);
   await expect(marker(page, '144')).toHaveAttribute('data-on', 'false');
