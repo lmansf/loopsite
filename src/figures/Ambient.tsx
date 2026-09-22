@@ -49,8 +49,13 @@ import type { Figure } from './types';
  * functional, accessible or narrative depends on it (§D.3).
  */
 
-/** The ceiling, and the only alpha in the ambient layer. §C.16: never above 8 %. */
-const BASE = 0.08;
+/**
+ * The only alpha in the ambient layer. `#ambient`'s mask holds it to 42 % of
+ * this across the reading column — 6.7 %, inside §C.16's 8 % ceiling behind
+ * type — and lets it up to the full 16 % only in the empty rails either side
+ * of the prose, which on a phone do not exist.
+ */
+const BASE = 0.16;
 
 /** The authored still (§C.16). Every figure's complete, at-rest composition. */
 const STILL = 0.25;

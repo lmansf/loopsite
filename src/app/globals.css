@@ -316,16 +316,28 @@ html[data-loop-js] #section-four-seconds .blk.choice:not([data-held]) { display:
   position:fixed; inset:0; z-index:var(--z-bg);
   width:100%; height:100%;
   pointer-events:none;
-  /* Restraint, enforced by the layer rather than by each figure: the mask
-     holds the figure to a little over half its strength across the middle of
-     the screen, which is exactly where the reading column is, and lets it up
-     to full only out at the edges where there is nothing to read. At the
-     ceiling of 8 % that is 4.4 % alpha behind a line of prose, which takes
-     17.5 : 1 body text to 14.8 : 1 — four times the 4.5 : 1 it has to clear. */
-  -webkit-mask-image:radial-gradient(130% 100% at 50% 46%,
-    rgb(0 0 0 / .55) 0%, rgb(0 0 0 / .58) 36%, rgb(0 0 0 / 1) 92%);
-          mask-image:radial-gradient(130% 100% at 50% 46%,
-    rgb(0 0 0 / .55) 0%, rgb(0 0 0 / .58) 36%, rgb(0 0 0 / 1) 92%);
+  /* Restraint, enforced by the layer and not trusted to twelve separate
+     files. The mask is the READING COLUMN, cut out of the figure: across the
+     34 rem the prose occupies the figure is held to 42 % of its strength, and
+     it comes up to full only in the rails either side, where there is nothing
+     to read. The stops are absolute, so on a phone — where the column is the
+     whole screen — the full band is off-screen on both sides and the figure
+     is at 42 % everywhere, and on a 1440 the empty left rail is the one place
+     on the site the figure is allowed to be seen properly.
+
+     42 % of the 0.16 the layer draws at is 6.7 % alpha behind a line of
+     prose, inside §C.16's 8 % ceiling. Measured: body text over the brightest
+     thing the layer can put behind it is 14.8 : 1, against the 4.5 : 1 it has
+     to clear and the 17.5 : 1 it has over bare canvas. */
+  --ambient-rail:18rem;
+  -webkit-mask-image:linear-gradient(to right,
+    #000 0, #000 calc(50% - var(--ambient-rail)),
+    rgb(0 0 0 / .42) calc(50% - 15rem), rgb(0 0 0 / .42) calc(50% + 15rem),
+    #000 calc(50% + var(--ambient-rail)), #000 100%);
+          mask-image:linear-gradient(to right,
+    #000 0, #000 calc(50% - var(--ambient-rail)),
+    rgb(0 0 0 / .42) calc(50% - 15rem), rgb(0 0 0 / .42) calc(50% + 15rem),
+    #000 calc(50% + var(--ambient-rail)), #000 100%);
 }
 /* A reader who has asked for less has already said what they want from a
    moving background. The still is still drawn — it is a composition, not an
