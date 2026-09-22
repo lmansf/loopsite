@@ -12,7 +12,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Account, Aside, Block } from '../../src/content/schema.ts';
 import { CORPUS } from '../../src/content/accounts.ts';
-import { compileAccount, compileBlock, escapeHtml, __resetCompileCache } from '../../src/content/compile.ts';
+import {
+  compileAccount,
+  compileBlock,
+  escapeHtml,
+  CONTRADICTION_HOME,
+  __resetCompileCache,
+} from '../../src/content/compile.ts';
 
 function aside(over: Partial<Aside> = {}): Aside {
   return { id: 'a-key', word: 'the word', text: 'a body.', ...over };
@@ -69,8 +75,55 @@ test('a regex-shaped word is matched literally', () => {
 
 test('the one aside carrying open is emitted already open', () => {
   const html = compileBlock(block(), [aside({ open: true })]);
-  assert.ok(/<details class="aside" data-key="a-key" open>/.test(html));
+  assert.ok(/<details class="aside" data-key="a-key" data-i="0" open>/.test(html));
   assert.ok(!compileBlock(block(), [aside()]).includes(' open>'));
+});
+
+test('the body is emitted at the foot of the block, never inside the word', () => {
+  const html = compileBlock(block(), [aside()]);
+  // the <details> carries the word and nothing else: a block-level box inside
+  // an inline is what cut the sentence in half (`13` §2.1)
+  assert.ok(html.includes('<summary>the word</summary></details>'), html);
+  assert.ok(html.indexOf('aside-body') > html.indexOf('</details>'));
+  // and the paragraph's own text is untouched either side of it
+  assert.ok(html.startsWith('a sentence with <details'));
+  assert.ok(
+    html.includes('</details> in it.<span class="aside-body"'),
+    'the prose after the word did not stay with the prose',
+  );
+});
+
+test('the note names its word, escaped, and the pair is matched by data-i', () => {
+  const html = compileBlock(
+    block({ text: 'one [the word] and two [other] here.' }),
+    [aside(), aside({ id: 'b-key', word: 'other', text: 'another body.' })],
+  );
+  assert.ok(html.includes('data-key="a-key" data-i="0"'));
+  assert.ok(html.includes('data-key="b-key" data-i="1"'));
+  assert.ok(
+    html.includes('<span class="aside-body" data-i="0"><span class="aside-word">the word</span>a body.</span>'),
+  );
+  assert.ok(html.includes('<span class="aside-body" data-i="1"><span class="aside-word">other</span>'));
+  // both notes are after both words, which is what `~` needs to pair them
+  assert.ok(html.indexOf('aside-body') > html.lastIndexOf('</details>'));
+});
+
+test('data-i runs in reading order, whatever order the asides are in', () => {
+  const html = compileBlock(
+    block({ text: 'first [other] then [the word].' }),
+    [aside(), aside({ id: 'b-key', word: 'other', text: 'another body.' })],
+  );
+  assert.ok(html.includes('data-key="b-key" data-i="0"'));
+  assert.ok(html.includes('data-key="a-key" data-i="1"'));
+});
+
+test('a hostile word cannot escape the note that names it', () => {
+  const html = compileBlock(
+    block({ text: 'here is [<img src=x>] and nothing else.' }),
+    [aside({ word: '<img src=x>' })],
+  );
+  assert.ok(!html.includes('<img'), 'an img survived into the note');
+  assert.ok(html.includes('<span class="aside-word">&lt;img src=x&gt;</span>'));
 });
 
 test('a bracketed word with no aside keeps its brackets rather than vanishing', () => {
@@ -105,7 +158,7 @@ test('locked blocks are interleaved at their authored position, never appended',
         assert.ok((compiled.blocks[i] as string).includes(`data-belief="${b.belief}"`));
       }
     });
-    assert.equal(compiled.html, compiled.blocks.join(''));
+    assert.ok(compiled.html.startsWith(compiled.blocks.join('')));
   }
 });
 
@@ -181,4 +234,61 @@ test('the memo returns the same object for the same account', () => {
   __resetCompileCache();
   const account = CORPUS.accounts[0] as Account;
   assert.equal(compileAccount(account), compileAccount(account));
+});
+
+
+/* ------------------------------------------------- the five contradictions */
+
+test('every contradiction line goes home to the account it names first', () => {
+  __resetCompileCache();
+  assert.equal(CONTRADICTION_HOME.size, CORPUS.contradictions.length);
+  for (const c of CORPUS.contradictions) {
+    const home = CONTRADICTION_HOME.get(c.id) as string;
+    // `needs` is written in the order the line names its witnesses, so the
+    // line lands with the first one — which is also the account the reader
+    // met first, every pair running earlier to later in nav order.
+    const emitter = CORPUS.accounts.find((a) => a.asides.some((x) => x.id === c.needs[0]));
+    assert.equal(home, emitter?.id, c.id);
+    const later = CORPUS.accounts.find((a) => a.asides.some((x) => x.id === c.needs[1]));
+    const order = CORPUS.accounts.map((a) => a.id);
+    assert.ok(
+      order.indexOf(home as never) <= order.indexOf((later?.id ?? home) as never),
+      `${c.id}: the line is parked in the later of its two accounts`,
+    );
+  }
+});
+
+test('a contradiction renders as a locked block at the foot of its account', () => {
+  __resetCompileCache();
+  for (const account of CORPUS.accounts) {
+    const html = compileAccount(account).html;
+    const mine = CORPUS.contradictions.filter((c) => CONTRADICTION_HOME.get(c.id) === account.id);
+    assert.equal(
+      [...html.matchAll(/class="blk contra"/g)].length,
+      mine.length,
+      `${account.id}: wrong number of contradiction lines`,
+    );
+    for (const c of mine) {
+      // it is behind the synthetic key the engine already computes (§C.5), so
+      // it materialises by the ordinary entry rule and costs no new mechanism
+      assert.ok(html.includes(`data-needs="contra:${c.id}"`), c.id);
+      assert.ok(html.includes(c.line), c.id);
+      // last: after every block of the account's own prose
+      assert.ok(
+        html.indexOf(`data-id="contra-${c.id}"`) >
+          html.lastIndexOf(`data-id="${account.blocks[account.blocks.length - 1]?.id}"`),
+        `${c.id} is not the last block in ${account.id}`,
+      );
+    }
+  }
+  // no contradiction is printed twice anywhere on the site
+  const all = CORPUS.accounts.map((a) => compileAccount(a).html).join('');
+  for (const c of CORPUS.contradictions) {
+    assert.equal([...all.matchAll(new RegExp(`data-id="contra-${c.id}"`, 'g'))].length, 1, c.id);
+  }
+});
+
+test('a contradiction id cannot collide with a block id', () => {
+  const ids = new Set(CORPUS.accounts.flatMap((a) => a.blocks.map((b) => b.id)));
+  for (const c of CORPUS.contradictions) assert.ok(!ids.has(`contra-${c.id}`), c.id);
 });

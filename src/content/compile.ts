@@ -28,7 +28,7 @@
  * byte cost.
  */
 
-import type { Account, AccountId, Aside, Block } from './schema.ts';
+import type { Account, AccountId, Aside, Block, Contradiction } from './schema.ts';
 import { EMITTERS } from '../lib/knowledge.ts';
 import { CORPUS } from './accounts.ts';
 
@@ -65,22 +65,72 @@ function escapeRegExp(s: string): string {
  * A bracketed word with no matching aside keeps its brackets rather than
  * silently vanishing: `tests/unit/corpus.test.ts` already makes that
  * impossible, and a visible bracket in a preview is better than a lost word.
+ *
+ * ## The aside body is emitted at the FOOT of the block, not inside the word
+ *
+ * §C.2 put the body inside the `<details>` and let the block-level box
+ * fragment the inline it sits in. It works, and it reads as a fault: the
+ * opening block of `dog` came out as
+ *
+ *     …the dark came in one
+ *     ⟦ the aside ⟧
+ *     piece, like a held breath.
+ *
+ * — the sentence severed between `one` and `piece`, on the first screen the
+ * whole site is priced on (`13` §2.1). Nothing in CSS can move a box out of
+ * the inline it is written in: in flow it is a block, a float or an inline,
+ * and all three cut the line. So the COMPILER moves it. The `<details>` keeps
+ * the word, exactly where the writer put it, and carries nothing else; the
+ * body is emitted as its sibling after the last sentence of the block, and
+ * `read.css` pairs the two by `data-i` with a plain `~` — no `:has()`, no
+ * `::details-content`, no JavaScript, and no browser older than the sibling
+ * combinator can get it wrong.
+ *
+ * The summary carries no `aria-details` to the body it no longer holds: the
+ * note is read where it stands, at the end of the paragraph the word is in,
+ * which is the same order the eye gets it in, and the pair of attributes cost
+ * 0.4 KB of an 18 KB flight budget for an announcement two screen readers of
+ * four would make.
+ *
+ * What the reader gets: the paragraph is never interrupted, the note arrives
+ * under the paragraph the word is in, and the words BELOW an open aside are
+ * no longer pushed down the page by it — which is what puts a second,
+ * unpressed word in the first viewport (`13` §5.6).
+ *
+ * The note names its word. That is the tie, it is the only thing that can be
+ * the tie once the body is not inside the word, and it costs no new copy:
+ * `Aside.word` is the corpus's own string. It also reads the way a gloss has
+ * always read, and it tells a screen-reader user which word the note answers.
  */
 export function compileBlock(block: Block, asides: readonly Aside[]): string {
   let html = escapeHtml(block.text);
-  for (const aside of asides) {
+  // positions are taken BEFORE any substitution, so `data-i` runs in reading
+  // order however the asides happen to be ordered in the corpus
+  const found = asides
+    .map((aside) => ({ aside, at: html.indexOf(`[${escapeHtml(aside.word)}]`) }))
+    .filter((hit) => hit.at >= 0)
+    .sort((a, b) => a.at - b.at);
+
+  const bodies: string[] = [];
+  found.forEach(({ aside }, i) => {
     const word = escapeHtml(aside.word);
     const pattern = new RegExp(`\\[${escapeRegExp(word)}\\]`);
-    if (!pattern.test(html)) continue;
     const open = aside.open ? ' open' : '';
-    const markup =
-      `<details class="aside" data-key="${attr(aside.id)}"${open}>` +
-      `<summary>${word}</summary>` +
-      `<span class="aside-body">${escapeHtml(aside.text)}</span>` +
-      `</details>`;
-    html = html.replace(pattern, () => markup);
-  }
-  return html;
+    html = html.replace(
+      pattern,
+      () =>
+        `<details class="aside" data-key="${attr(aside.id)}" data-i="${i}"${open}>` +
+        `<summary>${word}</summary>` +
+        `</details>`,
+    );
+    bodies.push(
+      `<span class="aside-body" data-i="${i}">` +
+        `<span class="aside-word">${word}</span>` +
+        escapeHtml(aside.text) +
+        `</span>`,
+    );
+  });
+  return html + bodies.join('');
 }
 
 /** One `.blk` element: the wrapper plus its compiled prose. */
@@ -127,6 +177,56 @@ function seeAlsoLink(key: string): string {
   );
 }
 
+/* ------------------------------------------------- the five contradictions */
+
+/**
+ * Which account says a contradiction's line, and why that account.
+ *
+ * A contradiction is earned across two accounts and belongs to neither
+ * witness — it is the one place the narrator speaks. `Contradiction.needs` is
+ * written in the same order as the line names its witnesses (`the dog heard
+ * two clicks. the switch was pressed once.` needs `two-clicks`, then
+ * `one-press`), so the line goes home to **the account it names first**:
+ * `clicks` to `dog`, `bridge` to `river`, `count` to `moth`, `hill` to
+ * `window`, `both` to `lamp`, which emits both halves of it. No table, no
+ * ruling — the corpus's own ordering decides, and `tests/unit/compile.test.ts`
+ * holds it to that.
+ *
+ * That is also the witness the reader met FIRST — every pair runs earlier
+ * account to later one in nav order — so the line waits in a page they have
+ * already read and will pass again, and finding it is a re-reading, not a
+ * notification. `13` §5.3 suggested the later account; the earlier one is
+ * where the ring actually carries the reader back to.
+ */
+export const CONTRADICTION_HOME: ReadonlyMap<string, AccountId> = new Map(
+  CORPUS.contradictions.flatMap((c) => {
+    const home = EMITTERS.get(c.needs[0] as string);
+    return home ? [[c.id, home] as const] : [];
+  }),
+);
+
+/**
+ * One contradiction, as an ordinary locked block at the foot of its account's
+ * prose (§C.5 `contra:<id>`, §C.6).
+ *
+ * It needs no new mechanism: `effectiveKeys()` already computes `contra:<id>`
+ * the moment both halves are held, and the runtime already materialises
+ * `.blk[data-needs]` at entry, with the permanent hairline rule that marks
+ * new material and the one-entry `data-new` fade. Which means the line
+ * obeys the materialisation rule like everything else — it is never inserted
+ * while the reader is looking at the page, and it costs no layout shift.
+ *
+ * It is last in the account because the line is not the witness's voice and
+ * may not interrupt it, and because the last thing before the ask card is the
+ * one paragraph every reader who finishes an account passes through.
+ */
+function compileContradiction(c: Contradiction): string {
+  return (
+    `<div class="blk contra" role="paragraph" data-id="contra-${attr(c.id)}"` +
+    ` data-needs="contra:${attr(c.id)}">${escapeHtml(c.line)}</div>`
+  );
+}
+
 const cache = new Map<string, { id: string; html: string; blocks: string[] }>();
 
 /**
@@ -137,13 +237,17 @@ const cache = new Map<string, { id: string; html: string; blocks: string[] }>();
  * `blocks[i]` is the complete `.blk` element for `account.blocks[i]`, in
  * authored (story) order — locked blocks INTERLEAVED at their written
  * position, never appended. `html` is the concatenation, ready for
- * `dangerouslySetInnerHTML` on `.blocks`.
+ * `dangerouslySetInnerHTML` on `.blocks`, followed by any contradiction line
+ * this account is home to.
  */
 export function compileAccount(a: Account): { id: string; html: string; blocks: string[] } {
   const hit = cache.get(a.id);
   if (hit) return hit;
   const blocks = a.blocks.map((b) => compileBlockElement(a, b));
-  const out = { id: a.id, html: blocks.join(''), blocks };
+  const lines = CORPUS.contradictions
+    .filter((c) => CONTRADICTION_HOME.get(c.id) === a.id)
+    .map(compileContradiction);
+  const out = { id: a.id, html: blocks.join('') + lines.join(''), blocks };
   cache.set(a.id, out);
   return out;
 }

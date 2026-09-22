@@ -8,8 +8,8 @@
 
      1. a closed <details> must read as an ordinary word, on the
         line it was written on, with nothing broken either side;
-     2. an open one must put its body on a line of its own without
-        cutting the sentence in half;
+     2. an open one must put its body on a line of its own and
+        must never cut a sentence in half to do it;
      3. a blank in `four seconds` must be the exact shape of the
         sentence it is hiding, and must not read that sentence
         out to anybody.
@@ -24,14 +24,19 @@
    three lines at 360 px in the widest system sans, two in Roboto and SF. */
 #main > #loop-title {
   font-size: clamp(1.375rem, 1.05rem + 1.35vw, 2.25rem);
-  margin-bottom: var(--sp-6);
+  /* Every pixel between the premise and the first paragraph is a pixel of the
+     story the reader does not arrive in (`13` §3 F4, §5.6). --sp-6 was a
+     desktop rhythm charged to a 640 px phone; the premise keeps a full line of
+     air under it and the phone gets the line back. */
+  margin-bottom: var(--sp-5);
 }
+@media (min-width: 900px) { #main > #loop-title { margin-bottom: var(--sp-6); } }
 
 /* ---------- the reading column (§F.1) ---------- */
 .blocks {
-  display: flow-root;                 /* contains the inline-<details> float */
+  display: flow-root;
   max-width: var(--measure-read);
-  margin-top: var(--sp-5);
+  margin-top: var(--sp-4);            /* see the premise, above */
   font-family: var(--font-read);
   font-size: var(--text-read);
   line-height: var(--lh-read);
@@ -42,7 +47,7 @@
   -webkit-font-smoothing: auto;
 }
 .blk {
-  display: flow-root;                 /* the float never escapes its paragraph */
+  display: flow-root;                 /* nothing in a paragraph escapes it */
   text-wrap: pretty;                  /* globals sets this for <p>; a .blk is a div */
 }
 .blk + .blk { margin-top: 1.45em; }   /* one and a half lines: a break with no rule */
@@ -75,6 +80,12 @@
 @media (min-width: 900px) {
   .blk[data-needs] { padding-left: 1.25rem; margin-left: -1.25rem; }
 }
+
+/* A contradiction's line (§C.5 `contra:<id>`, §C.6). It is an ordinary locked
+   block — same rule, same entry rule, same one-entry fade — with the rule
+   drawn in Ember, which is the hub's colour and the site's only other mark
+   for a contradiction. The numeral said one of five; this is the one. */
+.blk.contra::before { background: var(--c-accent-3); }
 
 /* New to THIS entry, for one entry (§C.6): opacity and a scaleY on the rule.
    No height, no margin, no transform on the block box — the space is already
@@ -144,28 +155,44 @@
 
 /* THE OPENING, and it is the whole trick.
 
-   A <details> whose content box is block-level fragments the inline it sits
-   in, and the rest of the sentence restarts on a new line — which orphans the
-   full stop that follows the word and reads like a fault. A closed one does
-   it too in browsers that give ::details-content a box: Chromium hides that
-   box with `content-visibility`, not with `display: none`, so an untouched
-   closed aside breaks its line in three.
+   A box put inside a sentence breaks the sentence. In flow it can be a
+   block, a float or an inline, and all three cut the line the word is on:
+   the float version shipped, and the opening block of `dog` read
 
-   So: the closed content box is removed outright, and the open one is
-   `display: contents`, which leaves the aside body itself as the only box in
-   the inline. The body is then a full-width float. A float does not break the
-   line it is anchored in — the sentence runs on to the end of that line — and
-   the lines after it are laid out below it. The aside lands between two lines
-   of the paragraph, in place, under the word, with the sentence intact.
-   `.blk { display: flow-root }` is what keeps the float inside its block. */
-.aside:not([open])::details-content { display: none; }
-.aside[open]::details-content       { display: contents; }
+       …the dark came in one
+       ⟦ the aside, 114 px ⟧
+       piece, like a held breath.
 
-.aside > .aside-body {
-  display: block;
-  float: left;
-  width: 100%;
-  margin: 0.5em 0 0.65em;
+   on the first screen the whole site is priced on (`13` §2.1). No CSS can
+   move a box out of the inline it is written in, so `compile.ts` writes it
+   somewhere else: the <details> keeps the word and carries nothing, and the
+   body is its SIBLING at the foot of the block.
+
+   Pairing them is one plain `~`. `data-i` is the aside's index inside its
+   block (the corpus never puts more than two in one), the bodies are emitted
+   in the same order at the end, so `[data-i="n"][open] ~ .aside-body[data-i="n"]`
+   is exact. No `:has()`, no `::details-content`, no JavaScript, and nothing
+   here is newer than the sibling combinator — a browser that can render the
+   prose can open the aside.
+
+   The <details> is left holding nothing but its word, and the box Chromium
+   generates for the content it no longer has must go, or an EMPTY aside
+   fragments the line exactly as a full one did: `::details-content` is a
+   block in the UA sheet whether or not the element has content, and it put
+   the full stop after `eleven oh four` on a line of its own. Removing it
+   outright is safe here precisely because there is nothing inside to hide.
+
+   The paragraph is now never interrupted, the note lands under the paragraph
+   its word is in, and the prose BELOW an open aside is no longer pushed down
+   the page by it. */
+.aside::details-content { display: none; }
+.aside[data-i="0"][open] ~ .aside-body[data-i="0"],
+.aside[data-i="1"][open] ~ .aside-body[data-i="1"],
+.aside[data-i="2"][open] ~ .aside-body[data-i="2"] { display: block; }
+
+.aside-body {
+  display: none;
+  margin: 0.55em 0 0.15em;
   padding-left: 0.9em;
   border-left: 1px solid var(--c-border-strong);
   font-family: var(--font-sans);
@@ -174,6 +201,20 @@
   letter-spacing: 0;
   color: var(--c-text-secondary);
   text-wrap: pretty;
+}
+.aside-body + .aside-body { margin-top: 0.4em; }
+
+/* The note says which word it answers — the tie, once the body is not inside
+   the word. It is the corpus's own `Aside.word`, set in the story's face
+   against the note's, so it reads as the lemma of a gloss and not as prose
+   the writer repeated. */
+.aside-word {
+  display: block;
+  font-family: var(--font-read);
+  /* 0.9375 of the prose: the note's own em is 0.875 of it (§F.1) */
+  font-size: 1.0714em;
+  line-height: 1.35;
+  color: var(--c-text);
 }
 
 /* ---------- `four seconds`: the blank rule (§C.10) ----------

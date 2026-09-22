@@ -7,15 +7,27 @@
  *
  *   1. the raw response body is the whole site, and it reads with JavaScript
  *      switched off;
- *   2. a bracketed word is a real `<details>` that opens in place, in the
- *      first painted frame, without moving the paragraph it sits in;
- *   3. the pressable word is a 44 px target that does not touch the leading;
+ *   2. a bracketed word is a real `<details>` that opens in the first painted
+ *      frame, at the foot of its paragraph, WITHOUT CUTTING A SENTENCE — in
+ *      all twelve accounts, at 360 px and at 320 px;
+ *   3. the pressable word is a 44 px target that does not touch the leading,
+ *      and the reader's first screen holds one they have not pressed;
  *   4. `four seconds` at zero keys is seven blanks in the exact shape of the
- *      sentences it is withholding — and does not read them out.
+ *      sentences it is withholding — and does not read them out;
+ *   5. the five contradiction lines are in the document, reach the reader who
+ *      earns them, and cost no layout shift doing it.
  */
 
-import { test, expect, ACCOUNT_SLUGS } from './fixtures';
+import { test, expect, ACCOUNT_SLUGS, seedState, watchLayoutShift } from './fixtures';
 import { CORPUS } from '../src/content/accounts';
+import { allAsides } from '../src/content/schema';
+
+/** The account a contradiction's line lives in: the one it names first. */
+function home(needs: readonly string[]): string {
+  const account = CORPUS.accounts.find((a) => a.asides.some((x) => x.id === needs[0]));
+  if (!account) throw new Error(`no account emits ${needs[0]}`);
+  return account.id;
+}
 
 const FOUR_SECONDS = CORPUS.accounts.find((a) => a.id === 'four-seconds');
 const LOCKED_FS_BLOCKS = (FOUR_SECONDS?.blocks ?? []).filter((b) => b.needs);
@@ -50,6 +62,13 @@ test('the raw response body is the whole site', async ({ request }) => {
 
   // exactly one aside in the whole corpus arrives already open (§C.4)
   expect([...html.matchAll(/<details class="aside"[^>]* open>/g)]).toHaveLength(1);
+
+  // and all five contradiction lines are server-rendered, one per account,
+  // behind the `contra:<id>` key the engine already computes (§C.5)
+  for (const c of CORPUS.contradictions) {
+    expect(html, `contradiction ${c.id} is not in the document`).toContain(c.line);
+    expect(html).toContain(`data-needs="contra:${c.id}"`);
+  }
   expect(html).toContain('the lights went out for four seconds.');
   expect(html).toContain('twelve things were awake.');
   // a block is a div, never a <p>: <details> is not legal inside one (§I.6)
@@ -79,8 +98,16 @@ test('with JavaScript disabled the document is readable and every link works', a
   expect(hrefs.length).toBeGreaterThanOrEqual(ACCOUNT_SLUGS.length);
   for (const href of hrefs) expect(href).toMatch(/^\/\?s=[a-z-]+$/);
 
-  // the already-open aside's body is on screen with no JavaScript at all
-  await expect(page.locator('details.aside[open] .aside-body').first()).toBeVisible();
+  // the already-open aside's note is on screen with no JavaScript at all —
+  // the sibling pairing is CSS the oldest browser in service understands
+  await expect(
+    page.locator('#section-dog .blk[data-id="dog-1"] .aside-body[data-i="0"]'),
+  ).toBeVisible();
+  // and every contradiction line is plain prose to a reader with no
+  // JavaScript: nothing is locked, so nothing is withheld
+  for (const c of CORPUS.contradictions) {
+    await expect(page.locator(`.blk[data-id="contra-${c.id}"]`)).toBeVisible();
+  }
 
   // and `four seconds` is continuous prose, not blanks: without JavaScript
   // there are no locked blocks, so there is nothing to point away from.
@@ -105,7 +132,9 @@ test('a summary press opens its aside before React has hydrated', async ({ page 
 
   await expect(page.locator('#section-dog details.aside[open]')).toHaveCount(2);
   await expect(aside).toHaveAttribute('open', '');
-  await expect(aside.locator('.aside-body')).toBeVisible();
+  await expect(
+    page.locator('#section-dog .blk[data-id="dog-1"] .aside-body[data-i="1"]'),
+  ).toBeVisible();
 });
 
 test('a closed aside is closed to a screen reader too', async ({ page }) => {
@@ -127,40 +156,152 @@ test('a closed aside is closed to a screen reader too', async ({ page }) => {
 });
 
 for (const width of [360, 1280]) {
-  test(`the aside opens in place and moves nothing at ${width} px`, async ({ page }) => {
+  test(`the aside opens at the foot of its paragraph at ${width} px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/?s=dog');
     await expect(page.locator('#section-dog h2')).toBeVisible();
 
     const handle = page.locator('#section-dog details.aside[data-key="two-clicks"]');
     const summary = handle.locator('> summary');
-    const block = handle.locator('xpath=ancestor::div[contains(@class,"blk")]');
+    const block = page.locator('#section-dog .blk[data-id="dog-1"]');
+    const body = block.locator('.aside-body[data-i="1"]');
 
     const before = await block.boundingBox();
     await summary.click();
     await expect(handle).toHaveAttribute('open', '');
+    await expect(body).toBeVisible();
     const after = await block.boundingBox();
 
-    // the block's left edge and width do not move: the aside opens INSIDE the
-    // paragraph, it does not reflow the column (§C.2, §C.3).
+    // the column does not move: the aside opens inside the paragraph's box,
+    // it does not reflow the measure (§C.2, §C.3).
     expect(after?.x).toBeCloseTo(before?.x ?? -1, 1);
     expect(after?.width).toBeCloseTo(before?.width ?? -1, 1);
+    // and it opens DOWNWARDS: the paragraph starts where it started
+    expect(after?.y).toBeCloseTo(before?.y ?? -1, 1);
 
-    // the body starts below the line box its word sits in, and spans the column
-    const geometry = await handle.evaluate((el) => {
-      const summaryEl = el.querySelector('summary') as HTMLElement;
-      const body = el.querySelector('.aside-body') as HTMLElement;
-      const range = document.createRange();
-      range.selectNodeContents(summaryEl);
-      const line = range.getBoundingClientRect();
+    // the body is below every line of the paragraph's prose, and spans the
+    // column: it is a note under the paragraph, not a box inside a sentence
+    const geometry = await block.evaluate((blk) => {
+      const body = blk.querySelector('.aside-body[data-i="1"]') as HTMLElement;
+      const prose = document.createRange();
+      prose.setStart(blk, 0);
+      prose.setEndBefore(blk.querySelector('.aside-body') as HTMLElement);
+      const lines = [...prose.getClientRects()].filter((r) => r.height > 0);
       const b = body.getBoundingClientRect();
-      const blk = el.closest('.blk') as HTMLElement;
-      return { lineBottom: line.bottom, bodyTop: b.top, bodyWidth: b.width, blkWidth: blk.getBoundingClientRect().width };
+      return {
+        proseBottom: Math.max(...lines.map((r) => r.bottom)),
+        bodyTop: b.top,
+        bodyWidth: b.width,
+        blkWidth: blk.getBoundingClientRect().width,
+      };
     });
-    expect(geometry.bodyTop).toBeGreaterThanOrEqual(geometry.lineBottom - 1);
+    expect(geometry.bodyTop).toBeGreaterThanOrEqual(geometry.proseBottom - 1);
     expect(geometry.bodyWidth).toBeGreaterThan(geometry.blkWidth * 0.8);
   });
 }
+
+/**
+ * The one that matters, and it is checked on every aside in the corpus rather
+ * than on `dog`: opening a word may not break the sentence it is in.
+ *
+ * A block's prose is everything before its first note. If opening an aside
+ * leaves that prose one contiguous run of line boxes — same count as when it
+ * was shut, every one of them above the note — then no sentence was cut,
+ * whatever the wrapping does at this width.
+ */
+for (const width of [360, 320]) {
+  test(`an opened aside never splits a sentence, in any account, at ${width} px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const slug of ACCOUNT_SLUGS) {
+      await page.goto(`/?s=${slug}`);
+      await expect(page.locator(`#section-${slug} h2`)).toBeVisible();
+      // every block this account can ever show, so the locked prose is measured too
+      await page.evaluate((s) => {
+        document
+          .querySelectorAll(`#section-${s} .blk[data-needs]`)
+          .forEach((el) => el.setAttribute('data-held', 'true'));
+      }, slug);
+
+      const faults = await page.evaluate((s) => {
+        const out: string[] = [];
+        const lineBoxes = (blk: Element) => {
+          const first = blk.querySelector('.aside-body');
+          const range = document.createRange();
+          range.setStart(blk, 0);
+          if (first) range.setEndBefore(first);
+          else range.setEnd(blk, blk.childNodes.length);
+          const tops = new Set<number>();
+          for (const r of range.getClientRects()) if (r.height > 0) tops.add(Math.round(r.top));
+          return tops;
+        };
+        for (const blk of document.querySelectorAll(`#section-${s} .blk`)) {
+          const asides = [...blk.querySelectorAll<HTMLDetailsElement>('details.aside')];
+          if (asides.length === 0 || !blk.getClientRects().length) continue;
+          const id = (blk as HTMLElement).dataset.id;
+          for (const a of asides) a.open = false;
+          const shut = lineBoxes(blk);
+          for (const a of asides) {
+            a.open = true;
+            const open = lineBoxes(blk);
+            const body = blk.querySelector<HTMLElement>(
+              `.aside-body[data-i="${a.dataset.i}"]`,
+            );
+            if (!body || getComputedStyle(body).display === 'none') {
+              out.push(`${id}: opening ${a.dataset.key} showed no note`);
+              a.open = false;
+              continue;
+            }
+            if (open.size !== shut.size) {
+              out.push(
+                `${id}: opening ${a.dataset.key} reflowed the prose from ` +
+                  `${shut.size} lines to ${open.size}`,
+              );
+            }
+            const top = body.getBoundingClientRect().top;
+            for (const line of open) {
+              if (line >= top - 1) {
+                out.push(`${id}: ${a.dataset.key}'s note sits above a line of the paragraph`);
+                break;
+              }
+            }
+            a.open = false;
+          }
+        }
+        return out;
+      }, slug);
+      expect(faults, `${slug} at ${width} px`).toEqual([]);
+    }
+  });
+}
+
+/** The note says which word it answers — the tie, and the corpus's own word. */
+test('every note names its word', async ({ page }) => {
+  for (const account of CORPUS.accounts) {
+    await page.goto(`/?s=${account.id}`);
+    await expect(page.locator(`#section-${account.id} h2`)).toBeVisible();
+    const notes = await page.evaluate(
+      (s) =>
+        [...document.querySelectorAll<HTMLElement>(`#section-${s} details.aside`)].map((d) => {
+          const blk = d.closest('.blk');
+          const body = blk?.querySelector<HTMLElement>(`.aside-body[data-i="${d.dataset.i}"]`);
+          return {
+            key: d.dataset.key ?? '',
+            word: body?.querySelector('.aside-word')?.textContent ?? null,
+            text: (body?.textContent ?? '').slice(0, 200),
+          };
+        }),
+      account.id,
+    );
+    expect(notes.map((n) => n.key).sort()).toEqual(account.asides.map((a) => a.id).sort());
+    for (const note of notes) {
+      const aside = account.asides.find((a) => a.id === note.key);
+      expect(note.word, `${account.id}/${note.key} has no named note`).toBe(aside?.word);
+      expect(note.text).toContain((aside?.text ?? '').slice(0, 40));
+    }
+  }
+});
 
 test('a closed aside reads as an ordinary word on its own line', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 900 });
@@ -340,5 +481,125 @@ test('every account is readable from an empty key set', async ({ page }) => {
     await page.goto(`/?s=${slug}`);
     await expect(page.locator(`#section-${slug} h2`)).toBeVisible();
     await expect(page.locator(`#section-${slug} .blk:visible`).first()).toBeVisible();
+  }
+});
+
+
+/* ------------------------------------------------- §F.2, §F.3: the first press */
+
+test('the first screen holds a word the reader has not pressed', async ({ page }) => {
+  // 360 x 640 is the device §F.3 and the rubric both measure. A reader's
+  // first instinct must be able to ADD something: if the only pressable word
+  // on the screen is the one that is already open, the teaching gesture takes
+  // the five lines of bonus text away and grants nothing (`13` §2.2).
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto('/');
+  await expect(page.locator('#section-dog .blk[data-id="dog-1"]')).toBeVisible();
+
+  const screen = await page.evaluate(() => {
+    const visible = (el: Element) => el.getClientRects().length > 0;
+    const bar = [...document.querySelectorAll('.ask-bar')].filter(visible)[0] as HTMLElement;
+    const ceiling = bar ? bar.getBoundingClientRect().top : window.innerHeight;
+    const shut: string[] = [];
+    for (const summary of document.querySelectorAll<HTMLElement>(
+      '#section-dog details.aside:not([open]) > summary',
+    )) {
+      const r = summary.getBoundingClientRect();
+      const dotted = getComputedStyle(summary).textDecorationStyle === 'dotted';
+      if (dotted && r.top >= 0 && r.bottom <= ceiling) {
+        shut.push(summary.parentElement?.dataset.key ?? '');
+      }
+    }
+    return { ceiling, shut, scrolled: window.scrollY };
+  });
+
+  expect(screen.scrolled).toBe(0);
+  expect(
+    screen.shut,
+    'no unpressed word is fully above the ask bar in the first viewport',
+  ).not.toEqual([]);
+
+  // and pressing it ADDS: a key the reader did not hold a moment ago, and the
+  // solid rule that says so for the rest of their life with the site
+  const keys = () =>
+    page.evaluate(
+      () => (JSON.parse(window.localStorage.getItem('loop:v2') ?? '{}').keys ?? []) as string[],
+    );
+  const word = screen.shut[0] as string;
+  expect(await keys()).not.toContain(word);
+  await page.locator(`#section-dog details.aside[data-key="${word}"] > summary`).click();
+  await expect(page.locator(`#section-dog details.aside[data-key="${word}"]`)).toHaveAttribute(
+    'data-held',
+    'true',
+  );
+  await expect(async () => expect(await keys()).toContain(word)).toPass();
+});
+
+/* --------------------------------------------- §C.5: the five contradictions */
+
+test('a contradiction pays out its line in the account it names first', async ({ page }) => {
+  const shift = await watchLayoutShift(page);
+  const clicks = CORPUS.contradictions.find((c) => c.id === 'clicks');
+  if (!clicks) throw new Error('the clicks contradiction is gone');
+
+  // the only way a contradiction can be earned: two words in two accounts
+  await page.goto('/?s=dog');
+  await page.locator('#section-dog details.aside[data-key="two-clicks"] > summary').click();
+  await page.locator('#section-dog .night a[data-slug="switch"]').click();
+  await expect(page.locator('#section-switch h2')).toBeVisible();
+  await page.locator('#section-switch details.aside[data-key="one-press"] > summary').click();
+
+  // the hub says one of five — and nothing has appeared in the account the
+  // reader is looking at, which is the rule that protects CLS (§C.3)
+  await expect(page.locator('.ask-bar[data-slug="switch"] .hub')).toHaveText('1/5');
+  expect(await page.locator('.blk.contra').evaluateAll(
+    (els) => els.filter((el) => el.getClientRects().length > 0).length,
+  )).toBe(0);
+
+  // it is waiting in `the dog` — the witness the line names first, and the
+  // one the reader read before this one
+  await page.locator('#section-switch .night a[data-slug="dog"]').click();
+  const line = page.locator('#section-dog .blk[data-id="contra-clicks"]');
+  await expect(line).toBeVisible();
+  await expect(line).toHaveText(clicks.line);
+  await expect(line).toHaveAttribute('data-new', 'true');
+  await expect(line).toHaveAttribute('data-held', 'true');
+
+  // it is still there on a cold load, and none of it cost a pixel of shift
+  await page.reload();
+  await expect(page.locator('#section-dog .blk[data-id="contra-clicks"]')).toBeVisible();
+  expect(await shift()).toBe(0);
+});
+
+test('all five lines are readable by a reader who has earned them', async ({ page }) => {
+  await seedState(page, {
+    keys: allAsides(CORPUS).map((a) => a.id),
+    collected: CORPUS.contradictions.map((c) => c.id),
+    visited: [...ACCOUNT_SLUGS],
+    visits: Object.fromEntries(ACCOUNT_SLUGS.map((s) => [s, 1])),
+  });
+  for (const c of CORPUS.contradictions) {
+    const slug = home(c.needs);
+    await page.goto(`/?s=${slug}`);
+    const line = page.locator(`#section-${slug} .blk[data-id="contra-${c.id}"]`);
+    await expect(line, `${c.id} is not in ${slug}`).toBeVisible();
+    await expect(line).toHaveText(c.line);
+    // it is the last thing in the account, so every reader who reaches the
+    // ask card has passed it
+    await expect(
+      page.locator(`#section-${slug} .blocks > .blk:visible`).last(),
+    ).toHaveAttribute('data-id', `contra-${c.id}`);
+  }
+});
+
+test('a contradiction nobody has earned is not in the reading', async ({ page }) => {
+  for (const c of CORPUS.contradictions) {
+    const slug = home(c.needs);
+    await page.goto(`/?s=${slug}`);
+    await expect(page.locator(`#section-${slug} h2`)).toBeVisible();
+    await expect(page.locator(`#section-${slug} .blk[data-id="contra-${c.id}"]`)).toBeHidden();
+    expect((await page.locator(`#section-${slug}`).innerText()).toLowerCase()).not.toContain(
+      c.line.slice(0, 40).toLowerCase(),
+    );
   }
 });
