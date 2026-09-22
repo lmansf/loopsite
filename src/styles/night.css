@@ -19,8 +19,10 @@
 
      320 / 360 / 393 / 412 -> 4 x 3      180 (200 % zoom) -> 2 x 6
 
-   Four columns and three rows on every phone, which is 148 px of navigation:
-   a fifth column would not save a row (twelve over five is still three) and
+   Four columns and three rows on every phone, which is 151 px of navigation
+   and is the floor: three rows of a 44 px target with the 8 px of clear space
+   the spacing floor requires is 148, and the titles need the other three. A
+   fifth column would not save a row (twelve over five is still three) and
    would cost every label 15 px, and a third column costs a fourth ROW, which
    at 320 x 568 leaves 35 px of story above the bar. Hence the two bounds:
 
@@ -73,7 +75,7 @@
    `overflow-wrap: anywhere` is the guarantee of last resort, so that a
    narrower track than any phone has still shows every character. */
 .night .label {
-  font-size: 0.6875rem;
+  font-size: var(--text-2xs);
   line-height: 1.15;
   letter-spacing: 0.01em;
   text-align: center;

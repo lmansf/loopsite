@@ -64,6 +64,12 @@
   --text-body:    clamp(1rem, 0.96rem + 0.19vw, 1.125rem);
   --text-sm:      clamp(0.875rem, 0.86rem + 0.09vw, 0.9375rem);
   --text-xs:      0.75rem;
+  /* The night's twelve titles, and nothing else. `the streetlight` has to fit
+     a 62 px track at 320 px without an ellipsis, which 12 px cannot do on two
+     lines and 11 px can; and a navigation title is the one label on the site
+     that is allowed to be smaller than --text-xs, because it is read once and
+     then recognised by its place in the grid. */
+  --text-2xs:     0.6875rem;
   /* The premise, §F.1: the LCP element. §F.1 floors it at 1.5rem; measured,
      that floor costs 113 px of headline at 320 px and 227 px at a 180 px
      layout viewport (200 % zoom), where 24 px type is eight lines of heading
