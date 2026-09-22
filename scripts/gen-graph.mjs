@@ -32,7 +32,7 @@ lines.push(`/**
  *   node --experimental-strip-types scripts/gen-graph.mjs > src/lib/graph.ts
  */
 
-import type { AccountId, Belief, KeyId } from '../content/schema';
+import type { AccountId, Belief, KeyId } from '../content/schema.ts';
 
 export interface GraphBlock {
   id: string;

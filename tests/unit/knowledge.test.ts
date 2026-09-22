@@ -132,6 +132,28 @@ test('an aside mask round-trips, and a corrupt one is empty rather than an error
   assert.equal(decodeAsideMask(mask.slice(0, 2)).size <= keys.size, true);
 });
 
+test('the graph is the corpus: any drift at all is a violation', () => {
+  // The guard that lets the engine stay out of the story. If the corpus is
+  // ever reopened, `node --experimental-strip-types scripts/gen-graph.mjs`
+  // regenerates `src/lib/graph.ts` byte for byte; until then any difference
+  // between the two is a defect, and this is where it is caught.
+  const drifts: [string, (c: typeof CORPUS) => void][] = [
+    ['a renamed block', (c) => void (c.accounts[0]!.blocks[0]!.id = 'dog-renamed')],
+    ['a new block', (c) => void c.accounts[0]!.blocks.push({ id: 'dog-9', text: 'x.' })],
+    ['a dropped block', (c) => void c.accounts[0]!.blocks.pop()],
+    ['a moved lock', (c) => void (c.accounts[0]!.blocks[2]!.needs = 'two-clicks')],
+    ['a rewritten belief', (c) => void (c.accounts[1]!.blocks[6]!.belief = 'hill')],
+    ['a reordered aside', (c) => c.accounts[0]!.asides.reverse()],
+    ['a changed contradiction', (c) => void (c.contradictions[0]!.needs = ['two-clicks'])],
+    ['a lost account', (c) => void c.accounts.pop()],
+  ];
+  for (const [what, break_] of drifts) {
+    const broken = structuredClone(CORPUS);
+    break_(broken);
+    assert.ok(auditCorpus(broken).length > 0, `${what} went unnoticed`);
+  }
+});
+
 test('a corpus that breaks a law is caught', () => {
   const broken = structuredClone(CORPUS);
   const dog = broken.accounts[0];
