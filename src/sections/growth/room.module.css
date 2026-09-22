@@ -1,4 +1,4 @@
-/* Room-scoped styles. Tokens only — never a literal colour (§E). */
+/* GROWTH — room-scoped styles. Tokens only — never a literal colour (§E). */
 .root {
   position: absolute;
   inset: 0;
