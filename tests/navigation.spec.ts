@@ -211,6 +211,83 @@ test('the hub reserves its box and prints no zero', async ({ page }) => {
   expect(box?.width ?? 0, 'the hub box is reserved at n = 0').toBeGreaterThan(8);
 });
 
+/* ----------------------------------------------------------------- at rest */
+
+/**
+ * §H.2: `getAnimations()` is empty one second after load, in every project.
+ * A permanently running animation anywhere — the ring build had one on
+ * `:root` — fails this, and it is the assertion that keeps every animation on
+ * this site finite.
+ */
+test('nothing is animating a second after load', async ({ page }) => {
+  for (const slug of ['dog', 'four-seconds']) {
+    await page.goto(`/?s=${slug}`);
+    await page.waitForTimeout(1100);
+    const running = await page.evaluate(() =>
+      document
+        .getAnimations()
+        .filter((a) => a.playState === 'running')
+        .map((a) => (a as CSSAnimation).animationName ?? 'anonymous'),
+    );
+    expect(running, `${slug} is still animating at rest`).toEqual([]);
+  }
+});
+
+/**
+ * And the same for the ambient layer, which `getAnimations()` cannot see.
+ * The figure runs for ONE revolution on entry and then stops the clock, so a
+ * reader who has settled into a paragraph is paying for no frames at all.
+ * This is a departure from §C.16's perpetual figure and it is the whole
+ * reason the departure is worth having, so it is measured.
+ */
+test('the ambient layer stops, and the reader reads in peace', async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __raf: number };
+    w.__raf = 0;
+    const real = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      w.__raf += 1;
+      return real(cb);
+    };
+  });
+  await page.goto('/');
+  const count = () => page.evaluate(() => (window as unknown as { __raf: number }).__raf);
+  // past the idle mount and one full revolution of the four seconds
+  await page.waitForTimeout(6500);
+  const settled = await count();
+  expect(settled, 'the figure never ran at all').toBeGreaterThan(10);
+  await page.waitForTimeout(1500);
+  expect(await count(), 'the clock is still running while the reader reads').toBe(settled);
+});
+
+/** §C.16: the swap is a cross-fade, and it is never applied on load. */
+test('the account cross-fade happens on a swap and not on arrival', async ({ page }) => {
+  await page.goto('/?s=kettle');
+  await expect(page.locator('#section-kettle')).toBeVisible();
+  expect(
+    await page.locator('#section-kettle').evaluate((el) => (el as HTMLElement).dataset.swap),
+    'the first viewport must never be painted from opacity 0',
+  ).toBeUndefined();
+
+  await night(page, 'kettle').locator('> a[data-slug="clock"]').click();
+  await expect(page.locator('#section-clock')).toBeVisible();
+
+  // It is set for the swap and cleared again, so the fade runs once and
+  // leaves nothing behind. Polled rather than timed: on a shared CPU the
+  // whole chain — click, push, entry effect, attribute — can take longer than
+  // the fade itself, and what matters is that it settles, not when.
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => ({
+          swap: [...document.querySelectorAll('.account[data-swap]')].length,
+          running: document.getAnimations().filter((a) => a.playState === 'running').length,
+        })),
+      { timeout: 5000 },
+    )
+    .toEqual({ swap: 0, running: 0 });
+});
+
 /* -------------------------------------------------------------- the history */
 
 test('a slot pushes, and Back leaves in one press', async ({ page }) => {

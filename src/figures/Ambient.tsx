@@ -65,6 +65,34 @@ const IDLE_MS = 1200;
 
 const RESIZE_MS = 120;
 
+/** §C.16's account swap: 160 ms, opacity only, and only on a real swap. */
+const SWAP_MS = 200;
+
+/** The three things that can move the reader between accounts (§C.11, §C.15). */
+const ARMS = ['pointerdown', 'keydown', 'popstate'] as const;
+
+/**
+ * §C.16 gives the entering account a 160 ms cross-fade, and
+ * `design/12-wpn-notes.md` §D.8 scopes it to `[data-swap]` so it can never
+ * apply on load — painting the first viewport from opacity 0 is the one thing
+ * this build is built around not doing. WP-C sets the attribute; this is the
+ * only client module WP-C owns, and it is already watching `html[data-s]` for
+ * the figure, so it sets it here.
+ *
+ * It is never set under reduced motion, where the swap is instantaneous, and
+ * it is never set for the value the document arrived with — only for a change
+ * from one account to another, which is what "a swap" means.
+ */
+function markSwap(slug: string): void {
+  if (document.documentElement.dataset.motion === 'reduce') return;
+  const section = document.getElementById(`section-${slug}`);
+  if (!section) return;
+  section.dataset.swap = 'true';
+  window.setTimeout(() => {
+    delete section.dataset.swap;
+  }, SWAP_MS);
+}
+
 export function Ambient() {
   const ref = useRef<HTMLCanvasElement | null>(null);
 
@@ -175,8 +203,31 @@ export function Ambient() {
     if (typeof ric === 'function') idle = ric(() => enter(), { timeout: IDLE_MS });
     else timer = window.setTimeout(enter, IDLE_MS);
 
+    /* ---- a swap is a move the reader made, and nothing else ----
+       The document does not settle on its account in one step: at `/?s=road`
+       the runtime writes `data-s=dog` and then `data-s=road` inside its entry
+       effect, which is two attribute changes before the reader has done
+       anything. Watching for a CHANGE is therefore not enough to tell a swap
+       from an arrival, and an arrival must never fade in (`12` §D.8). So the
+       cross-fade is armed by the first press, key or Back — the three things
+       that can move the reader — and is not armed before one happens. */
+    let armed = false;
+    const arm = () => {
+      armed = true;
+      for (const type of ARMS) window.removeEventListener(type, arm, true);
+    };
+    for (const type of ARMS) window.addEventListener(type, arm, { capture: true, passive: true });
+
     /* ---- the account the reader is in, and nothing else, decides the figure ---- */
-    const watcher = new MutationObserver(() => enter());
+    let last = document.documentElement.dataset.s ?? '';
+    const watcher = new MutationObserver(() => {
+      const next = document.documentElement.dataset.s ?? '';
+      if (next !== last) {
+        if (armed) markSwap(next);
+        last = next;
+      }
+      enter();
+    });
     watcher.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-s'],
@@ -197,6 +248,7 @@ export function Ambient() {
       if (resizeTimer) clearTimeout(resizeTimer);
       if (timer) clearTimeout(timer);
       if (idle && typeof window.cancelIdleCallback === 'function') window.cancelIdleCallback(idle);
+      for (const type of ARMS) window.removeEventListener(type, arm, true);
       watcher.disconnect();
       observer.disconnect();
       halt();
