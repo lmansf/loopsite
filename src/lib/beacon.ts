@@ -1,13 +1,14 @@
 /**
  * src/lib/beacon.ts — the first-party engagement beacon.
  *
- * Spec: design/05-build-spec.md §C.9. FROZEN after WP0.
+ * Spec: design/11-narrative-build-spec.md §C.14. Retained wholesale from WP0;
+ * only the event names changed. Owned by WP-D.
  *
  * No cookies. No localStorage. No fingerprinting. No PII. One sessionStorage
  * key that dies with the tab. Refuses to send at all under DNT / GPC.
  */
 
-import type { BeaconEventName } from './types';
+import type { BeaconEventName } from './types.ts';
 
 const ENDPOINT = '/api/beacon';
 const SID_KEY = 'loop:sid';
@@ -19,16 +20,6 @@ interface WireEvent {
   n: BeaconEventName;
   t: number;
   d?: Record<string, string | number | boolean>;
-}
-
-declare global {
-  interface Window {
-    __loop?: {
-      interacted: boolean;
-      q: Array<{ n: string; t: number }>;
-      off: Array<() => void>;
-    };
-  }
 }
 
 let enabled = false;
@@ -108,12 +99,10 @@ export function beacon(
   detail?: Record<string, string | number | boolean>,
 ): void {
   if (!enabled) return;
-  // section_viewed / depth_reached carry a section and dedupe per section;
-  // the other three dedupe per name. Either way: once per session.
+  // account_viewed carries an account and dedupes per account; the other
+  // four dedupe per name. Either way: once per session (§C.14).
   const dedupeKey =
-    name === 'section_viewed' || name === 'depth_reached'
-      ? `${name}:${String(detail?.section ?? '')}`
-      : name;
+    name === 'account_viewed' ? `${name}:${String(detail?.account ?? '')}` : name;
   if (sent.has(dedupeKey)) return;
   sent.add(dedupeKey);
 
@@ -130,7 +119,7 @@ export function beacon(
   scheduleIdleFlush();
 }
 
-/** session_start, and flush the pre-hydration queue so a 300 ms tap is never lost. */
+/** session_start. The first thing the runtime does. */
 export function initBeacon(): void {
   if (started || typeof window === 'undefined') return;
   started = true;
@@ -142,14 +131,6 @@ export function initBeacon(): void {
   sid = ensureSid();
 
   beacon('session_start');
-
-  const pre = window.__loop?.q;
-  if (Array.isArray(pre)) {
-    for (const ev of pre) {
-      if (ev && ev.n === 'hero_interacted') beacon('hero_interacted');
-    }
-    window.__loop!.q = [];
-  }
 
   // time_on_site_30s accrues only while the document is visible.
   visibleSince = document.visibilityState === 'visible' ? performance.now() : 0;

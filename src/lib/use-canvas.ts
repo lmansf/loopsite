@@ -3,7 +3,10 @@
 /**
  * src/lib/use-canvas.ts — canvas sizing, DPR policy and the decay recipe.
  *
- * Spec: design/05-build-spec.md §F.4, §C.2. FROZEN after WP0.
+ * Spec: design/11-narrative-build-spec.md §D.3. Retained from WP0; its only
+ * change is that the ring geometry it used to compute is gone. It now reports
+ * the canvas box and the DPR its backing store was sized at, which is exactly
+ * what `Figure.draw(ctx, phase, w, h, dpr)` takes. Owned by WP-C.
  *
  * DPR: min(devicePixelRatio, heavy ? 1.5 : 2), with the total backing store
  * capped at 2.5 Mpx. Resize via a 100 ms-debounced ResizeObserver, never the
@@ -12,16 +15,15 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { computeGeometry } from './ring-geometry';
-import type { RingGeometry } from './types';
-import { rgba } from './tokens';
+import type { CanvasGeometry } from './types.ts';
+import { rgba } from './tokens.ts';
 
 const MAX_BACKING_PX = 2_500_000;
 const RESIZE_DEBOUNCE_MS = 100;
 
 export function dprFor(w: number, h: number, heavy = false): number {
   const raw = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-  // Touch devices get 1.5: the ring is stroke art, and a phone's GPU-less
+  // Touch devices get 1.5: the figures are stroke art, and a phone's GPU-less
   // worst case (software raster) pays for every backing-store pixel per frame.
   const coarse =
     typeof window !== 'undefined' &&
@@ -37,7 +39,7 @@ export function dprFor(w: number, h: number, heavy = false): number {
 
 /**
  * Size a canvas for a CSS box and return the ready 2D context.
- * Exported so RingStage can drive three canvases from one ResizeObserver.
+ * Exported so a caller can drive more than one canvas from one ResizeObserver.
  */
 export function sizeCanvas(
   canvas: HTMLCanvasElement,
@@ -83,12 +85,12 @@ export function decay(
 export function useCanvas(opts?: { heavy?: boolean }): {
   ref: React.RefObject<HTMLCanvasElement | null>;
   ctx: CanvasRenderingContext2D | null;
-  geometry: RingGeometry;
+  geometry: CanvasGeometry;
 } {
   const heavy = opts?.heavy === true;
   const ref = useRef<HTMLCanvasElement | null>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
-  const [geometry, setGeometry] = useState<RingGeometry>(() => computeGeometry(0, 0, false));
+  const [geometry, setGeometry] = useState<CanvasGeometry>({ w: 0, h: 0, dpr: 1 });
 
   const measure = useCallback(() => {
     const canvas = ref.current;
@@ -98,13 +100,9 @@ export function useCanvas(opts?: { heavy?: boolean }): {
     const h = parent.clientHeight || window.innerHeight;
     const dpr = dprFor(w, h, heavy);
     const next = sizeCanvas(canvas, w, h, dpr);
-    const coarse =
-      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-        ? window.matchMedia('(pointer: coarse)').matches
-        : false;
-    const g = computeGeometry(w, h, coarse);
-    g.dpr = dpr;
-    setGeometry(g);
+    setGeometry((prev) =>
+      prev.w === w && prev.h === h && prev.dpr === dpr ? prev : { w, h, dpr },
+    );
     setCtx((prev) => (prev === next ? prev : next));
   }, [heavy]);
 

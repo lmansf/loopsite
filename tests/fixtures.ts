@@ -1,7 +1,7 @@
 /**
- * tests/fixtures.ts — the shared fixture every spec uses.
+ * tests/fixtures.ts — the shared fixture every spec uses. **OWNED BY WP-D.**
  *
- * Spec: design/05-build-spec.md §H.1. Applied to EVERY spec:
+ * Spec: design/11-narrative-build-spec.md §H.1, §H.2. Applied to EVERY spec:
  *   - zero console errors
  *   - zero pageerror
  *   - no response >= 400
@@ -11,24 +11,32 @@
 
 import { test as base, expect, type Page } from '@playwright/test';
 
-export const ROOM_SLUGS = [
-  'origin',
-  'pulse',
-  'tone',
-  'trail',
-  'swarm',
-  'mirror',
-  'growth',
-  'orbit',
-  'loom',
-  'wear',
-  'garden',
-  'return',
+/** The twelve accounts, in nav order. `four-seconds` is always last. */
+export const ACCOUNT_SLUGS = [
+  'dog',
+  'lamp',
+  'kettle',
+  'moth',
+  'river',
+  'bus',
+  'radio',
+  'clock',
+  'window',
+  'switch',
+  'road',
+  'four-seconds',
 ] as const;
 
-export const HIDDEN_SLUGS = ['silence', 'reverse', 'slow', '144', 'twin'] as const;
+export type AccountSlug = (typeof ACCOUNT_SLUGS)[number];
 
+/** The account `/` server-renders as selected. */
+export const LANDING: AccountSlug = 'dog';
+
+/** One revolution of the clock, and the four seconds themselves. */
 export const SWEEP_MS = 4000;
+
+/** The viewports §F.3 and §H.2 measure at. 180 is 200 % zoom. */
+export const VIEWPORTS = [320, 360, 393, 412, 180, 1024, 1440] as const;
 
 export const test = base.extend<{ page: Page }>({
   page: async ({ page }, use) => {
@@ -47,22 +55,49 @@ export const test = base.extend<{ page: Page }>({
 
 export { expect };
 
-/** The ring's current geometry, read from the CSS mirrors the stage writes. */
-export async function ringGeometry(page: Page) {
-  return page.evaluate(() => {
-    const s = getComputedStyle(document.documentElement);
-    return {
-      r: parseFloat(s.getPropertyValue('--ring-r')),
-      cx: parseFloat(s.getPropertyValue('--ring-cx')),
-      cy: parseFloat(s.getPropertyValue('--ring-cy')),
-    };
-  });
+/**
+ * Go to an account and wait until the runtime has entered it. `data-s` is set
+ * before first paint by the bootstrap, so this resolves almost immediately;
+ * what it really waits for is the account being the displayed one.
+ */
+export async function gotoAccount(page: Page, slug: AccountSlug): Promise<void> {
+  await page.goto(`/?s=${slug}`);
+  await expect(page.locator(`#section-${slug}`)).toBeVisible();
 }
 
-/** Tap a point on the ring band at a given normalized turn (0 = 12 o'clock). */
-export async function tapRing(page: Page, turn: number) {
-  const g = await ringGeometry(page);
-  const x = g.cx + g.r * Math.sin(turn * Math.PI * 2);
-  const y = g.cy - g.r * Math.cos(turn * Math.PI * 2);
-  await page.mouse.click(x, y);
+/** The account the document is currently showing, from `html[data-s]`. */
+export async function activeAccount(page: Page): Promise<string | null> {
+  return page.evaluate(() => document.documentElement.getAttribute('data-s'));
+}
+
+/** Seed `loop:v2` before the first script runs. */
+export async function seedState(
+  page: Page,
+  state: Record<string, unknown>,
+): Promise<void> {
+  await page.addInitScript((s) => {
+    try {
+      window.localStorage.setItem('loop:v2', JSON.stringify(s));
+    } catch {
+      /* a test that cannot seed is a test that checks the empty case */
+    }
+  }, { v: 2, ...state });
+}
+
+/**
+ * Install a `layout-shift` PerformanceObserver before anything runs and
+ * return a reader for the accumulated score. §H.2 (e) wants exactly 0.
+ */
+export async function watchLayoutShift(page: Page): Promise<() => Promise<number>> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cls: number };
+    w.__cls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const e = entry as PerformanceEntry & { value: number; hadRecentInput: boolean };
+        if (!e.hadRecentInput) w.__cls += e.value;
+      }
+    }).observe({ type: 'layout-shift', buffered: true });
+  });
+  return () => page.evaluate(() => (window as unknown as { __cls: number }).__cls);
 }

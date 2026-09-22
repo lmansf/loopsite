@@ -1,21 +1,26 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ROOMS, bySlug } from '@/sections/registry';
-import { ShellFor } from '@/sections/shells';
+import { CORPUS } from '@/content/accounts';
+import { ACCOUNT_IDS } from '@/content/schema';
+import { AccountSection } from '@/components/read/AccountSection';
 import { AliasRedirect } from './AliasRedirect';
 
 /**
- * src/app/s/[slug]/page.tsx — the prerendered alias route.
+ * src/app/s/[slug]/page.tsx — the prerendered alias route. **OWNED BY WP-A.**
  *
- * Spec: design/05-build-spec.md §C.10. Its only job is `generateMetadata`.
- * On arrival it replaceStates to /?s=<slug>, so the canonical URL is always the
- * single route and the back button is never polluted.
+ * Spec: §C.11. Its only job is `generateMetadata`: a link to one account
+ * shared anywhere gets that account's own title and standfirst in the
+ * preview. On arrival it `replaceState`s to `/?s=<slug>`, so the canonical URL
+ * is always the single route and the back button is never polluted.
+ *
+ * It still renders the account, because the redirect needs JavaScript and a
+ * reader without it must land on something readable.
  */
 
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return ROOMS.map((room) => ({ slug: String(room.id) }));
+  return ACCOUNT_IDS.map((slug) => ({ slug: String(slug) }));
 }
 
 export async function generateMetadata({
@@ -24,25 +29,25 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const room = bySlug(slug);
-  if (!room) return { title: 'Loop — tap. it comes back.' };
+  const account = CORPUS.accounts.find((a) => a.id === slug);
+  if (!account) return { title: 'Loop — the lights went out for four seconds.' };
   return {
-    title: `${room.title} — Loop`,
-    description: room.blurb,
-    alternates: { canonical: `/?s=${room.id}` },
-    openGraph: { title: `${room.title} — Loop`, description: room.blurb },
+    title: `${account.title} — Loop`,
+    description: account.standfirst,
+    alternates: { canonical: `/?s=${account.id}` },
+    openGraph: { title: `${account.title} — Loop`, description: account.standfirst },
   };
 }
 
 export default async function AliasPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const room = bySlug(slug);
-  if (!room) notFound();
+  const account = CORPUS.accounts.find((a) => a.id === slug);
+  if (!account) notFound();
 
   return (
-    <div className="room-shell" data-slug={room.id} data-active="true">
-      <AliasRedirect slug={String(room.id)} />
-      <ShellFor slug={room.id} />
-    </div>
+    <main id="main">
+      <AliasRedirect slug={account.id} />
+      <AccountSection account={account} />
+    </main>
   );
 }

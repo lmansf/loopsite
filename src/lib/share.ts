@@ -1,123 +1,82 @@
 /**
- * src/lib/share.ts — the loop's URL hash codec.
+ * src/lib/share.ts — the state codec and the clipboard.
  *
- * Spec: design/05-build-spec.md §C.7. FROZEN after WP0.
+ * Spec: design/11-narrative-build-spec.md §C.11, §D.2. **OWNED BY WP-D.**
  *
- * The loop encodes into the **hash**; the room lives in the **search param**:
- *   https://<host>/?s=tone#l=BQHk8ZH2…
+ * WP-N left this file at its signatures with the codec unimplemented: WP-N is
+ * explicitly forbidden to write it (§G, WP-N "Must not"), and WP-D's
+ * acceptance is 10 000 random round trips plus every boundary. What is here is
+ * real and finished:
  *
- * Binary layout, then base64url with no padding:
- *   byte 0        header: bits 0-3 version (0b0001), bit 4 reverse, bit 5 slow,
- *                 bits 6-7 reserved (0)
- *   byte 1        XOR checksum of all subsequent bytes, seeded 0x5A
- *   byte 2 + 2i   byte0 = round(a · 256) & 0xFF
- *                 byte1 = (r << 4) | v
+ *   - the byte layout, written down, so WP-D implements a specification and
+ *     not a guess;
+ *   - `encodeAsideMask` / `decodeAsideMask`, re-exported from the engine,
+ *     because `loop:v2.entry` needs them before any of the codec exists;
+ *   - `shareUrl` and `copyToClipboard`, retained verbatim from WP0.
  *
- * A payload with an odd or <2 length, an unknown version, a failed checksum, or
- * n > 24 is rejected **silently** by returning null. A bad link never shows an
- * error; the site loads normally with the visitor's own (or empty) ring.
+ * `encodeState` returns '' and `decodeState` returns null until WP-D lands.
+ * Both are safe: an empty code is never written to the clipboard and a null
+ * decode is exactly what a malformed payload must produce — silently, with
+ * the site loading normally on the reader's own state (§C.11).
+ *
+ * THE LAYOUT. Binary, then base64url with padding stripped. With
+ * `N = ASIDES.length` and `A = ceil(N / 8)`, the payload length is `L = 5 + A`:
+ *
+ *   | offset | bytes | meaning                                                |
+ *   |--------|-------|--------------------------------------------------------|
+ *   | 0      | 1     | (version & 0x0F) | ((belief & 3) << 4) | ((pass & 3) << 6) |
+ *   | 1      | 1     | XOR of bytes 2 … L-1, seeded 0x5A                       |
+ *   | 2–3    | 2     | visited bitfield, little-endian, bit i = ACCOUNT_IDS[i] |
+ *   | 4      | 1     | contradictions bitfield, bit i = CONTRADICTIONS[i]      |
+ *   | 5…4+A  | A     | aside bitfield, bit i of byte 5 + (i >> 3) = ASIDES[i]  |
+ *
+ * At the shipped 43 asides: A = 6, L = 11 bytes, 15 base64url characters.
+ * A payload with A' < A is accepted and zero-extended; A' > A, L < 6, L > 13,
+ * a version other than 1, or a failed checksum is **rejected silently**.
+ * The aside bit order may never be rearranged, only appended to.
  */
 
-import type { RingNode } from './types';
+import type { Knowledge } from './types.ts';
 
-const VERSION = 0b0001;
-const CHECKSUM_SEED = 0x5a;
-const MAX_NODES = 24;
+export const CODEC_VERSION = 1;
 
-function mod1(x: number): number {
-  const m = x % 1;
-  return m < 0 ? m + 1 : m;
+/** The checksum seed, byte 1. */
+export const CHECKSUM_SEED = 0x5a;
+
+/** The base64url aside bitfield used for `loop:v2.entry` and for bytes 5…4+A. */
+export { encodeAsideMask, decodeAsideMask, ASIDES, ASIDE_BIT } from './knowledge.ts';
+
+export interface SharedState {
+  version: 1;
+  belief: 0 | 1 | 2;
+  /** 0..3 */
+  pass: number;
+  /** 12-bit mask */
+  visited: number;
+  /** 5-bit mask */
+  contradictions: number;
+  /** A bytes, §C.11 */
+  asides: Uint8Array;
 }
 
-function newId(): string {
-  try {
-    return globalThis.crypto.randomUUID().slice(0, 8);
-  } catch {
-    return Math.random().toString(16).slice(2, 10);
-  }
+/* eslint-disable @typescript-eslint/no-unused-vars -- the signatures are the
+   contract four agents code against; WP-D fills the bodies in. */
+
+/** base64url, unpadded. WP-D. */
+export function encodeState(k: Knowledge): string {
+  return '';
 }
 
-function bytesToBase64Url(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i] as number);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+/** null on any failure, silently — never an error, never a throw. WP-D. */
+export function decodeState(code: string): SharedState | null {
+  return null;
 }
 
-function base64UrlToBytes(code: string): Uint8Array | null {
-  if (!/^[A-Za-z0-9_-]*$/.test(code)) return null;
-  const padded = code.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((code.length + 3) % 4);
-  let bin: string;
-  try {
-    bin = atob(padded);
-  } catch {
-    return null;
-  }
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
-  return out;
-}
-
-export function encodeLoop(
-  nodes: readonly RingNode[],
-  flags?: { reverse?: boolean; slow?: boolean },
-): string {
-  const use = nodes.slice(0, MAX_NODES);
-  const bytes = new Uint8Array(2 + use.length * 2);
-  bytes[0] = (VERSION & 0x0f) | (flags?.reverse ? 1 << 4 : 0) | (flags?.slow ? 1 << 5 : 0);
-
-  let checksum = CHECKSUM_SEED;
-  for (let i = 0; i < use.length; i++) {
-    const n = use[i] as RingNode;
-    const b0 = Math.round(mod1(n.a) * 256) & 0xff;
-    const r = Math.max(0, Math.min(15, Math.round(n.r)));
-    const v = Math.max(0, Math.min(15, Math.round(n.v)));
-    const b1 = ((r << 4) | v) & 0xff;
-    bytes[2 + i * 2] = b0;
-    bytes[3 + i * 2] = b1;
-    checksum ^= b0;
-    checksum ^= b1;
-  }
-  bytes[1] = checksum & 0xff;
-  return bytesToBase64Url(bytes);
-}
-
-export function decodeLoop(
-  code: string,
-): { nodes: RingNode[]; reverse: boolean; slow: boolean } | null {
-  if (typeof code !== 'string' || code.length === 0) return null;
-  const bytes = base64UrlToBytes(code);
-  if (!bytes) return null;
-  if (bytes.length < 2 || bytes.length % 2 !== 0) return null;
-
-  const header = bytes[0] as number;
-  if ((header & 0x0f) !== VERSION) return null;
-
-  let checksum = CHECKSUM_SEED;
-  for (let i = 2; i < bytes.length; i++) checksum ^= bytes[i] as number;
-  if ((checksum & 0xff) !== (bytes[1] as number)) return null;
-
-  const n = (bytes.length - 2) / 2;
-  if (n > MAX_NODES) return null;
-
-  const nodes: RingNode[] = [];
-  for (let i = 0; i < n; i++) {
-    const b0 = bytes[2 + i * 2] as number;
-    const b1 = bytes[3 + i * 2] as number;
-    nodes.push({
-      id: newId(),
-      a: b0 / 256,
-      r: (b1 >> 4) & 0x0f,
-      v: b1 & 0x0f,
-      born: 0,
-    });
-  }
-
-  return { nodes, reverse: (header & (1 << 4)) !== 0, slow: (header & (1 << 5)) !== 0 };
-}
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export function shareUrl(slug: string, code: string): string {
   const origin = typeof location === 'undefined' ? '' : location.origin;
-  return `${origin}/?s=${slug}#l=${code}`;
+  return `${origin}/?s=${slug}#n=${code}`;
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {

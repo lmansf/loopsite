@@ -1,51 +1,106 @@
 /**
  * src/lib/types.ts — THE SHARED CONTRACT.
  *
- * Written by WP0. **Frozen.** A room agent editing this file is the failure
- * mode that costs the swarm a day (spec §G). If you need a change here, open
- * an issue; the architect makes the change.
+ * Rewritten by WP-N under the explicit authorisation in
+ * design/11-narrative-build-spec.md §I.14, then **FROZEN** again. Every type
+ * the four builders code against lives here and nowhere else. A change here
+ * costs four agents; open an issue instead.
  *
- * Source of truth: design/05-build-spec.md §C.3, §C.4, §F.3.
+ * Source of truth: `design/11-narrative-build-spec.md` §C.12 (storage),
+ * §C.14 (beacon), §D.2 (module APIs), §D.4 (the clock).
+ *
+ * This file imports **types only** from the content contract, so it is erased
+ * at compile time and carries no corpus bytes into any bundle (§E, item 3).
  */
 
-/** A room slug, branded so a stray string cannot be passed where a room is expected. */
-import type * as React from 'react';
+import type { AccountId, Belief, KeyId } from '../content/schema.ts';
 
-export type SectionId = string & { readonly __brand: 'SectionId' };
-
-/** Narrow a plain string to a SectionId. The only sanctioned way to make one. */
-export const asSectionId = (s: string): SectionId => s as SectionId;
-
-/* ------------------------------------------------------------------ nodes */
+/* ------------------------------------------------------------------ storage */
 
 /**
- * A node is the only thing a visitor creates (§C.3).
- * Angles are normalized turns: 0 = 12 o'clock, increasing clockwise.
+ * The one persisted object, `loop:v2` (§C.12). Written only by
+ * `src/lib/storage.ts`, read before first paint by `src/lib/boot.ts`.
  */
-export interface RingNode {
-  /** crypto.randomUUID().slice(0,8) */
-  id: string;
-  /** angle, normalized turn [0,1), quantized to 1/256 on commit */
-  a: number;
-  /** radius level 0..15 (8 = exactly on the ring) */
-  r: number;
-  /** variant 0..15 — room-interpreted (timbre, hue index, thread) */
-  v: number;
-  /** clock.revolution at creation, for age-based effects (WEAR) */
-  born: number;
+export interface LoopState {
+  v: 2;
+  /** real aside ids, in grant order, max 96 */
+  keys: string[];
+  /** aside id -> number of times opened, max 96 entries (drives `thrice:<key>`) */
+  opens: Record<string, number>;
+  /** account ids, in first-entry order */
+  visited: string[];
+  /** account id -> entry count */
+  visits: Record<string, number>;
+  /** contradiction ids earned */
+  collected: string[];
+  /** account id -> base64url aside bitfield held at that account's LAST entry */
+  entry: Record<string, string>;
+  /** 0 none, 1 valley, 2 hill */
+  belief: 0 | 1 | 2;
+  /** full passes, capped at 3 */
+  pass: number;
+  /** explicit override; default 'auto' */
+  motion: 'auto' | 'reduce';
 }
 
-/** A node crossed by the sweep on this frame. `lateness` is in milliseconds. */
-export interface FireEvent {
-  node: RingNode;
-  lateness: number;
+/* ------------------------------------------------------------------- beacon */
+
+/** The five events that reach the wire (§C.14). */
+export type BeaconEventName =
+  | 'session_start'
+  | 'word_pressed'
+  | 'account_viewed'
+  | 'contradiction_found'
+  | 'time_on_site_30s';
+
+/* -------------------------------------------------------------- the night */
+
+/**
+ * A night slot's state (§C.7). Never encoded by colour alone: `unread` is a
+ * hollow mark, `read` adds a fill and an inner hairline, `changed` adds a
+ * second short bar above the mark.
+ */
+export type AccountState = 'unread' | 'read' | 'changed';
+
+/* --------------------------------------------------------------- knowledge */
+
+/**
+ * Everything the reader holds. Immutable; `readKnowledge()` returns a new
+ * object on every change and `subscribe()` hands it to the runtime.
+ */
+export interface Knowledge {
+  /** REAL keys only — aside ids the reader has opened. */
+  keys: ReadonlySet<KeyId>;
+  /** real + synthetic (§C.5). The set every lock is evaluated against. */
+  effective: ReadonlySet<KeyId>;
+  opens: Readonly<Record<KeyId, number>>;
+  visited: ReadonlySet<AccountId>;
+  contradictions: ReadonlySet<string>;
+  belief: Belief | null;
+  /** 0..3 */
+  pass: number;
+  /** account id -> the key set recorded at that account's LAST entry (§C.6) */
+  entry: Readonly<Record<string, ReadonlySet<KeyId>>>;
 }
 
-/* ------------------------------------------------------------------ clock */
+/** What one `grantKey()` changed. Returned so the runtime can paint it. */
+export interface KeyDelta {
+  key: KeyId;
+  /** accounts whose state moved to `changed` because of this grant */
+  changed: AccountId[];
+  /** contradictions earned in the same tick */
+  contradictions: string[];
+}
+
+/* ------------------------------------------------------------------- clock */
 
 export type QualityTier = 'high' | 'mid' | 'low';
 
-/** The read-only per-frame snapshot every room receives (§C.4). */
+/**
+ * The read-only per-frame snapshot (§D.4). Retained from WP0 unchanged:
+ * `src/lib/clock.ts` still owns the single `requestAnimationFrame` in the
+ * application, and now only `<Ambient>` ever starts it.
+ */
 export interface ClockFrame {
   /** ms since the clock started, monotonic */
   t: number;
@@ -53,142 +108,25 @@ export interface ClockFrame {
   dt: number;
   /** [0,1). Quantized to 12 steps on read under reduced motion. */
   phase: number;
-  /** integer; increments on each forward wrap, decrements on each backward wrap, never below 0 */
+  /** integer; increments on each forward wrap, never below 0 */
   revolution: number;
   dir: 1 | -1;
-  /** 4000 normally, up to 16000 in SLOW */
+  /** 4000 — the four seconds */
   periodMs: number;
-  /** true on the single frame where revolution % 6 === 0 — the 24 s Return */
+  /** true on the single frame where revolution % 6 === 0 — the 24 s return */
   isReturn: boolean;
   tier: QualityTier;
 }
 
-/* ------------------------------------------------------------------ geometry */
-
-export interface RingGeometry {
-  cx: number;
-  cy: number;
-  R: number;
-  band: number;
-  dpr: number;
-  w: number;
-  h: number;
-}
-
-/* ------------------------------------------------------------------ storage */
-
-export interface LoopState {
-  v: 1;
-  /** slugs, in first-visit order */
-  visited: string[];
-  /** slug -> visit count (drives the `144` hidden destination) */
-  visits: Record<string, number>;
-  /** hidden ids found: silence|reverse|144|twin|slow */
-  collected: string[];
-  /** 0..1, max depth reported by any room */
-  maxDepth: number;
-  /** up to 12 share codes the visitor saved */
-  kept: string[];
-  /** share code of the ring at last unload */
-  lastLoop: string | null;
-  /** number of times RETURN has been reached */
-  returns: number;
-  sound: boolean;
-  /** explicit override; default 'auto' */
-  motion: 'auto' | 'reduce';
-  slow: boolean;
-  reverse: boolean;
-}
-
-/* ------------------------------------------------------------------ explore */
-
-export type ExploreEventName =
-  | 'section_viewed'
-  | 'section_interacted'
-  | 'depth_reached'
-  | 'collectible_found'
-  | 'section_completed';
-
-export interface ExploreEvent {
-  name: ExploreEventName;
-  section: SectionId;
-  /** 0..1, monotonic */
-  depth?: number;
-  /** non-PII, max 8 keys */
-  detail?: Record<string, string | number | boolean>;
-}
-
-/** The five events that reach the wire (§C.9). */
-export type BeaconEventName =
-  | 'session_start'
-  | 'hero_interacted'
-  | 'section_viewed'
-  | 'depth_reached'
-  | 'time_on_site_30s';
-
-/* ------------------------------------------------------------------ sections */
+/* ------------------------------------------------------------------ canvas */
 
 /**
- * Every room component receives exactly this.
- *
- * IMPORTANT: this object is **stable across frames**. The shell mutates
- * `clock`, `fired`, `nodes` and `geometry` on it in place each frame, and only
- * re-renders the component when `active`, `visible`, `reducedMotion`, `seed`
- * or `tier` change. That is what keeps React out of the 60 fps path. Read them
- * inside your `draw()` — never destructure them at effect-setup time.
+ * The ambient canvas's box, in CSS pixels, plus the DPR its backing store was
+ * sized at. `src/figures/*.ts` draw in CSS pixels; the context is already
+ * transformed.
  */
-export interface SectionProps {
-  id: SectionId;
-  /** this is the ?s= selected room */
-  active: boolean;
-  /** >20% visible. Rooms MUST NOT draw when false. */
-  visible: boolean;
-  /** resolved once in the shell; rooms never call matchMedia */
-  reducedMotion: boolean;
-  /** from ?seed=; same seed => same visuals */
-  seed: number;
-  onExplore: (event: ExploreEvent) => void;
-
-  /** read-only snapshot for the current frame */
-  clock: ClockFrame;
-  /** read-only. Rooms never mutate the set. */
-  nodes: readonly RingNode[];
-  geometry: RingGeometry;
-  /** nodes that fired this frame */
-  fired: readonly FireEvent[];
-  /** the ROOM layer */
-  ctx: CanvasRenderingContext2D | null;
-  /** the BACKGROUND layer */
-  bg: CanvasRenderingContext2D | null;
-  tier: QualityTier;
-  /** caption slot; only §I strings are legal */
-  say: (text: string, ms?: number) => void;
-}
-
-export interface SectionModule {
-  id: SectionId;
-  /** the one-word label: nav, <h2>, Ringway */
-  title: string;
-  /** the one-line hook copy (§I.3) */
-  hook: string;
-  /** one sentence for generateMetadata on /s/[slug] */
-  blurb: string;
-  /** the Next Arc destination */
-  next: SectionId;
-  /** 1..12, or null for hidden destinations */
-  notch: number | null;
-  kind: 'core' | 'expansion' | 'hidden';
-  /**
-   * The server-rendered shell is NOT carried here: registry consumers are client
-   * modules, and a Shell on the module would ship all seventeen shells to the
-   * browser. Server code resolves it through `src/sections/shells.tsx`.
-   */
-  Shell?: React.ComponentType<{ children?: React.ReactNode }>;
-  load: () => Promise<{ default: React.ComponentType<SectionProps> }>;
-  /** '100dvh' */
-  reservedHeight: string;
-  /** CI asserts the gz chunk size */
-  budgetKb: number;
-  /** caps DPR at 1.5 (MIRROR, TRAIL) */
-  heavy?: boolean;
+export interface CanvasGeometry {
+  w: number;
+  h: number;
+  dpr: number;
 }

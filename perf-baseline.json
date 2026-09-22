@@ -1,9 +1,9 @@
 {
-  "note": "The framework floor: everything the landing route loads that is NOT Loop's own landing code. Measured with gzip -9 from this repo's own /_not-found route, which contains no first-party client code but does carry the root layout (@vercel/analytics + @vercel/speed-insights, +2.3 KB gz). Tier B = Tier C - frameworkFloorGz = shell + RingStage + clock + the registry + the active room. Re-recorded after switching `pnpm build` to `next build --webpack`: Turbopack merged every room's dynamic import into one shared ~30 KB chunk (and duplicated it on the landing route), which defeats the per-room lazy budgets; webpack emits one chunk per room. Re-recorded again on next@15.5.25 (webpack default): the Next 16.3.5 App Router floor was 170.2 KB gz here; 15.5.25 is 142.1 KB gz for the same page, the escape hatch doc 03 \u00a712 recorded.",
+  "note": "The framework floor: everything the landing route loads that is NOT this site's own landing code. Measured with gzip -9 from this repo's own /_not-found route, which contains no first-party client code but does carry the root layout (@vercel/analytics + @vercel/speed-insights, +2.3 KB gz). Tier B = Tier C - frameworkFloorGz = the runtime island + the knowledge engine + storage + beacon + url-state, and NOT ONE WORD OF THE STORY (spec 11 §E item 3). Re-recorded by WP-N after the ring was torn out: the ring build's floor was 145.5 KB gz; the narrative build's root layout is smaller (no ring.css, no shell.css, no hero island), and /_not-found is now a plain server component. Next 15.5.25 on webpack, the escape hatch doc 03 §12 recorded: Turbopack merged every lazy import into one shared chunk, which defeats the per-figure budgets; webpack emits one chunk per import.",
   "recordedAt": "2026-09-22",
   "next": "15.5.25",
   "react": "19.3.0",
   "bundler": "webpack",
-  "frameworkFloorGz": 145487,
+  "frameworkFloorGz": 141766,
   "howToReRecord": "pnpm build && node scripts/bundle-budget.mjs  (it prints the measured floor; update this number and say why in the PR)"
 }

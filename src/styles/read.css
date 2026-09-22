@@ -1,0 +1,176 @@
+/* ============================================================
+   src/styles/read.css — THE PROSE LAYER. **OWNED BY WP-A.**
+   Spec: design/11-narrative-build-spec.md §C.2, §C.10, §F.1, §F.2.
+   Imported by globals.css. Tokens only; no raw colours or times.
+   ============================================================ */
+
+/* ---------- the reading column (§F.1) ---------- */
+.blocks {
+  display: flow-root;                 /* contains the inline-<details> fragmentation */
+  max-width: var(--measure-read);
+  margin-top: var(--sp-5);
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  font-family: var(--font-read);
+  font-size: var(--text-read);
+  line-height: var(--lh-read);
+  color: var(--c-text);
+}
+.blk { display: flow-root; }
+.blk + .blk { margin-top: 1.45em; }   /* one and a half lines: a break with no rule */
+
+/* A block behind a key keeps a permanent hairline left rule, so a re-reader
+   can see exactly which sentences are new (§F.1). */
+.blk[data-needs] {
+  position: relative;
+  padding-left: 0.75rem;
+  margin-left: -0.75rem;
+}
+.blk[data-needs]::before {
+  content: '';
+  position: absolute; left: 0; top: 0.18em; bottom: 0.18em;
+  width: 2px; background: var(--c-accent-dim);
+  transform-origin: top;
+}
+@media (min-width: 900px) {
+  .blk[data-needs] { padding-left: 1.25rem; margin-left: -1.25rem; }
+}
+
+/* New to THIS entry, for one entry (§C.6): opacity and a scaleY on the rule.
+   No height, no margin, no transform on the block box — the space is already
+   allocated in the frame the account is swapped in, so nothing can move. */
+:root[data-motion="auto"] .blk[data-new="true"] {
+  animation: blk-in var(--dur-4) var(--ease-enter) both;
+}
+:root[data-motion="auto"] .blk[data-new="true"]::before {
+  animation: rule-in 320ms var(--ease-enter) both;
+}
+@keyframes blk-in  { from { opacity: 0 } to { opacity: 1 } }
+@keyframes rule-in { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+
+/* ---------- the pressable word (§C.2, §F.2) ---------- */
+.aside { display: inline; }
+.aside > summary {
+  display: inline;
+  list-style: none;
+  cursor: pointer;
+  position: relative;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.22em;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-2) var(--ease-snap),
+              text-decoration-thickness var(--dur-2) var(--ease-snap);
+}
+.aside > summary::-webkit-details-marker { display: none; }
+.aside > summary::marker { content: ''; }
+
+/* 44 px of hit area, in the leading, not in the layout (§C.2). The copy law
+   that forbids two pressable words on the same or adjacent rendered line is
+   what makes that safe, and tests/copy.spec.ts enforces it. */
+.aside > summary::after {
+  content: '';
+  position: absolute; left: -2px; right: -2px;
+  top: 50%; height: 44px; transform: translateY(-50%);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .aside > summary:hover {
+    color: var(--c-accent);
+    text-decoration-thickness: 2px;
+  }
+}
+.aside > summary:active { color: var(--c-accent-hi); }
+.aside > summary:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+
+/* Held: the rule goes SOLID, permanently, whether or not the aside is open.
+   The page literally gets more solid as the reader works (§C.8). */
+.aside[data-held] > summary,
+.aside[open] > summary { text-decoration-style: solid; }
+
+/* A block-level child inside an inline <details> fragments the inline box and
+   puts the body on a line of its own, under the sentence, with the rest of the
+   block continuing after it. That is "opens in place", and it costs no JS. */
+.aside > .aside-body {
+  display: block;
+  margin: 0.5em 0;
+  font-family: var(--font-sans);
+  font-size: 0.9375em;
+  line-height: 1.5;
+  color: var(--c-text-secondary);
+  border-left: 1px solid var(--c-border-strong);
+  padding-left: 0.75em;
+}
+
+/* ---------- `four seconds`: the blank rule (§C.10) ---------- */
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) {
+  text-decoration: none;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background-image: linear-gradient(var(--c-border-strong), var(--c-border-strong));
+  background-size: 100% 1px;
+  background-position: 0 1.25em;
+  background-repeat: repeat-y;
+}
+.see-also {
+  display: block;
+  margin-top: 0.4em;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--c-text-secondary);
+}
+.see-also a {
+  display: inline-flex; align-items: center;
+  min-height: 44px; padding-right: var(--sp-2);
+  color: var(--c-accent);
+  border-bottom: 1px solid var(--c-border-strong);
+}
+.see-also a:hover { color: var(--c-accent-hi); }
+
+/* ---------- the ask card (§C.7, rubric E2/E3) ---------- */
+.ask.card {
+  display: block;
+  max-width: var(--measure-read);
+  margin-top: var(--sp-6);
+  padding: var(--sp-4);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  background: var(--c-surface);
+  transition: border-color var(--dur-2) var(--ease-snap);
+}
+.ask.card:hover, .ask.card:focus-visible { border-color: var(--c-accent); }
+.ask-title {
+  display: block;
+  font-family: var(--font-read);
+  font-size: var(--text-h3);
+  line-height: 1.2;
+  color: var(--c-text);
+}
+.ask-gap {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--c-text-secondary);
+}
+
+/* ---------- the belief choice (§C.9) ---------- */
+.choice { margin-top: var(--sp-6); }
+.choice-prompt { font-family: var(--font-read); color: var(--c-text); }
+.choice-options { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-3); }
+.choice-option {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-height: 44px; padding: 0 var(--sp-3);
+  border: 1px solid var(--c-border-strong); border-radius: var(--radius-md);
+  font-size: var(--text-sm); color: var(--c-text);
+}
+.choice-option .pip {
+  width: 10px; height: 10px; border-radius: 999px;
+  border: 1px solid var(--c-border-strong); background: transparent;
+}
+html[data-belief="valley"] .choice-option[data-belief-option="valley"] .pip,
+html[data-belief="hill"]   .choice-option[data-belief-option="hill"]   .pip {
+  background: var(--c-accent); border-color: var(--c-accent);
+}
+.choice-option:hover { border-color: var(--c-accent); }

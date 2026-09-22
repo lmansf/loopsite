@@ -1,35 +1,33 @@
 import type { Metadata, Viewport } from 'next';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import { HERO_BOOTSTRAP } from '@/lib/hero-bootstrap';
+import { BOOT } from '@/lib/boot';
 import { SkipLink } from '@/components/shell/SkipLink';
 import './globals.css';
-import '@/components/ring/ring.css';
 
 /**
  * src/app/layout.tsx — the document.
  *
- * Spec: design/05-build-spec.md §F.6, §I.5. **OWNED BY WP1 from here on.**
+ * Spec: design/11-narrative-build-spec.md §C.13, §D.3. **OWNED BY WP-A.**
  *
- * No webfont: system stack only, zero font bytes, zero font requests.
- * The inline bootstrap is a CLASSIC script, not type="module" — a module is
- * deferred and would miss first paint, which is the whole point of it.
+ * No webfont: system stacks only, zero font bytes, zero font requests. The
+ * prose is set in a system serif (`--font-read`) and the interface in the
+ * system sans, so the story and the UI are visibly different registers.
+ *
+ * The inline bootstrap is a CLASSIC script, not `type="module"` — a module is
+ * deferred and would miss first paint, which is the whole point of it. It is
+ * the only render-blocking JavaScript on the site and it is under 2 KB raw.
  */
 
+const TITLE = 'Loop — the lights went out for four seconds.';
+const DESCRIPTION = 'twelve things were awake. ask any of them.';
+
 export const metadata: Metadata = {
-  title: 'Loop — tap. it comes back.',
-  description: 'one ring, twelve rooms, no ending.',
+  title: TITLE,
+  description: DESCRIPTION,
   applicationName: 'Loop',
-  openGraph: {
-    title: 'Loop — tap. it comes back.',
-    description: 'one ring, twelve rooms, no ending.',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Loop — tap. it comes back.',
-    description: 'one ring, twelve rooms, no ending.',
-  },
+  openGraph: { title: TITLE, description: DESCRIPTION, type: 'website' },
+  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
   robots: { index: true, follow: true },
 };
 
@@ -57,11 +55,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <script id="loop-boot" dangerouslySetInnerHTML={{ __html: HERO_BOOTSTRAP }} />
+        <script id="loop-boot" dangerouslySetInnerHTML={{ __html: BOOT }} />
       </head>
       <body>
         <SkipLink />
-        <main id="main">{children}</main>
+        {children}
         {ON_VERCEL ? (
           <>
             <Analytics />

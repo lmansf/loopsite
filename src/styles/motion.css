@@ -1,38 +1,25 @@
 /* ============================================================
-   LOOP — src/styles/motion.css
-   Shared @keyframes and the reduced-motion layer for them.
-   Imported by globals.css. Tokens only; no colours here.
+   src/styles/motion.css — shared keyframes and nothing else.
+   **OWNED BY WP-C.** Spec: §C.16. Imported by globals.css.
+
+   Every animation on this site is opacity or transform, both
+   composited, both excluded from layout by definition. There is
+   no infinite animation anywhere: tests/reduced-motion.spec.ts
+   asserts document.getAnimations() is empty one second after
+   load in every account, and a perpetual :root animation (which
+   is what the ring had) would fail it in every project.
    ============================================================ */
 
-@keyframes loop-breathe {
-  0%, 100% { opacity: 0.6; }
-  50%      { opacity: 0.85; }
-}
+@keyframes loop-fade-in  { from { opacity: 0 } to   { opacity: 1 } }
+@keyframes loop-fade-out { from { opacity: 1 } to   { opacity: 0 } }
 
-@keyframes loop-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes loop-fade-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
-/* A notch locking in: 360ms fill (--dur-5, --ease-loop) plus one Ember frame. */
-@keyframes loop-lock-in {
-  0%   { transform: scale(1);    }
-  55%  { transform: scale(1.35); }
-  100% { transform: scale(1);    }
-}
-
-/* The Next Arc traveller walking its arc once, on idle escalation. */
-@keyframes loop-travel {
-  from { offset-distance: 0%;   }
-  to   { offset-distance: 100%; }
-}
-
-/* The ambient breathe survives reduced motion — a still page is a dead page. */
-.is-ambient {
-  animation: loop-breathe var(--loop-slow) var(--ease-drift) infinite;
+/* The account swap: 160 ms cross-fade on the .account box, opacity only, and
+   ONLY on a swap. It is not applied on load — the first painted frame must
+   already carry the premise, the heading, the night, block 1 and its open
+   aside at full opacity (§B, rubric A1/A5), so a fade-from-zero at load would
+   cost the one thing this build is built around. WP-C sets `data-swap` on the
+   entering account for one frame. Under reduced motion the swap is
+   instantaneous (§C.16). */
+:root[data-motion="auto"] .account[data-swap] {
+  animation: loop-fade-in 160ms var(--ease-enter) both;
 }

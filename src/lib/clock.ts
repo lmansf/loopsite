@@ -7,7 +7,7 @@
  * a draw callback with `subscribeFrame` instead.
  */
 
-import type { ClockFrame, QualityTier } from './types';
+import type { ClockFrame, QualityTier } from './types.ts';
 
 /** One revolution. The master constant of the entire site. */
 export const SWEEP_MS = 4000;

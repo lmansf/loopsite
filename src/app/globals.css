@@ -1,18 +1,27 @@
 /* ============================================================
-   LOOP — globals.css   (Tailwind v4 + tokens + critical layer)
-   Source of truth: design/05-build-spec.md §E. Do not add a
-   colour, duration or amplitude anywhere else in the codebase.
+   THE SAME FOUR SECONDS — globals.css
+   Source of truth: design/11-narrative-build-spec.md §E, §F.
+   Tokens, the document layer, and the attribute mechanics that
+   make a locked block exist. Do not add a colour, duration or
+   amplitude anywhere else in the codebase.
+   OWNED BY WP-C.
    ============================================================ */
 @import "tailwindcss";
 @import "../styles/motion.css";
+@import "../styles/read.css";
+@import "../styles/night.css";
+@import "../styles/ui.css";
 
 @theme {
-  /* ---- fonts: system stack only. No webfont, ever. ---- */
+  /* ---- fonts: system stacks only. No webfont, ever. ---- */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, sans-serif;
   --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
                   "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+  /* the prose voice (§F.1): a short story is not a UI */
+  --font-read: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+               Georgia, "Times New Roman", serif;
 
   /* ---- raw palette ---- */
   --color-fil-100:#E6FFF8; --color-fil-300:#9CF6E0; --color-fil-400:#7CF3D8;
@@ -41,8 +50,8 @@
   --color-loop-accent:         #4FE9C4;   /* 13.22:1 — Filament */
   --color-loop-accent-hi:      #7CF3D8;   /* 15.03:1 */
   --color-loop-accent-dim:     #22C9A3;
-  --color-loop-accent-2:       #9B8CFF;   /*  7.28:1 — Ion: back/history/reverse */
-  --color-loop-accent-3:       #FFA65C;   /* 10.42:1 — Ember: discovery/heat */
+  --color-loop-accent-2:       #9B8CFF;   /*  7.28:1 — Ion */
+  --color-loop-accent-3:       #FFA65C;   /* 10.42:1 — Ember: the hub, and nothing else */
   --color-loop-on-accent:      #06070A;   /* 13.22:1 on Filament */
   --color-loop-focus:          #7CF3D8;   /* 15.03:1 */
 
@@ -55,6 +64,10 @@
   --text-body:    clamp(1rem, 0.96rem + 0.19vw, 1.125rem);
   --text-sm:      clamp(0.875rem, 0.86rem + 0.09vw, 0.9375rem);
   --text-xs:      0.75rem;
+  /* the premise, §F.1: two lines, the LCP element */
+  --text-premise: clamp(1.5rem, 1.18rem + 1.42vw, 2.25rem);
+  /* block prose, §F.1: 17 px … 19 px at 1.62 */
+  --text-read:    clamp(1.0625rem, 1.02rem + 0.28vw, 1.1875rem);
 
   /* ---- easings ---- */
   --ease-loop:     cubic-bezier(.65,0,.35,1);
@@ -85,9 +98,6 @@
   --c-accent-dim:var(--color-loop-accent-dim);    --c-accent-2:var(--color-loop-accent-2);
   --c-accent-3:var(--color-loop-accent-3);        --c-on-accent:var(--color-loop-on-accent);
   --c-focus:var(--color-loop-focus);
-  --c-trail-0:color-mix(in oklab, var(--c-accent) 0%,  transparent);
-  --c-trail-1:color-mix(in oklab, var(--c-accent) 35%, transparent);
-  --c-trail-2:var(--c-accent-hi);
 
   --shadow-1:0 1px 2px rgb(0 0 0 / .5);
   --shadow-2:0 8px 24px -8px rgb(0 0 0 / .65);
@@ -97,31 +107,34 @@
   --glow-3:0 0 72px -12px color-mix(in oklab, var(--c-accent-2) 18%, transparent);
   --glow-full:0 0 0 1px color-mix(in oklab, var(--c-accent) 90%, transparent),
               var(--glow-1), var(--glow-2), var(--glow-3);
-  --blend-traveller:plus-lighter;
 
   /* line-height / tracking / measure */
   --lh-display:0.94; --lh-h1:1.02; --lh-h2:1.12; --lh-h3:1.25; --lh-body:1.6; --lh-sm:1.45;
+  --lh-read:1.62;
   --ls-display:-0.035em; --ls-h1:-0.025em; --ls-h2:-0.015em;
   --ls-body:0em; --ls-sm:0.005em; --ls-label:0.14em;
   --measure:68ch; --measure-lead:54ch; --measure-display:18ch;
+  /* the reading column, §F.1: ~62 characters at 17 px */
+  --measure-read:34rem;
 
   /* space, layout, z */
   --sp-1:.25rem; --sp-2:.5rem; --sp-3:.75rem; --sp-4:1rem; --sp-5:1.5rem;
   --sp-6:2rem; --sp-7:3rem; --sp-8:4rem; --sp-9:6rem; --sp-10:8rem;
   --gutter:max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
   --gutter-b:max(1rem, env(safe-area-inset-bottom));
-  --content-max:76rem; --tap-min:48px;
-  --z-bg:0; --z-room:10; --z-ring:20; --z-caption:30; --z-nav:80; --z-overlay:90;
+  --content-max:76rem; --tap-min:44px;
+  --bar-h:56px;
+  --z-bg:0; --z-read:10; --z-nav:80; --z-overlay:90;
 
   /* durations */
   --dur-1:80ms; --dur-2:120ms; --dur-3:180ms; --dur-4:240ms;
   --dur-5:360ms; --dur-6:520ms; --dur-7:720ms; --dur-8:1200ms;
 
-  /* THE CLOCK: one revolution = 4000ms. Everything else is a multiple. */
+  /* THE CLOCK: one revolution = 4000ms, and it is the four seconds. */
   --loop-half:4000ms;     /* one revolution — the master */
   --loop-cycle:8000ms;    /* 2 revolutions */
   --loop-double:16000ms;  /* 4 revolutions */
-  --loop-slow:24000ms;    /* 6 revolutions — the Return */
+  --loop-slow:24000ms;    /* 6 revolutions — the return */
 
   /* amplitudes — components read these, never hardcode */
   --amp-drift:24px; --amp-parallax:40px; --amp-lift:4px; --amp-tilt:7deg;
@@ -129,17 +142,7 @@
   --amp-scale-press:0.97; --amp-scale-hover:1.03;
   --trail-len:18px; --trail-tau:380ms;
   --phase-n:12; --follow-lerp:0.12;
-
-  /* ring geometry mirrors (written by JS once per resize; CSS reads them) */
-  --ring-r:0px; --ring-cx:50%; --ring-cy:50%;
 }
-
-@property --loop-t { syntax:"<number>"; inherits:true; initial-value:0; }
-@property --px     { syntax:"<number>"; inherits:true; initial-value:0.5; }
-@property --py     { syntax:"<number>"; inherits:true; initial-value:0.5; }
-:root { animation: loop-clock var(--loop-half) linear infinite; }
-@keyframes loop-clock { from{--loop-t:0} to{--loop-t:1} }
-.loop-set > * { animation-delay: calc(-1 * var(--loop-half) * var(--i) / var(--phase-n)); }
 
 /* ---------- light theme: a real design, not an inversion ---------- */
 [data-theme="light"], :root:not([data-theme="dark"]):where(.light-pref) {
@@ -154,7 +157,6 @@
   --glow-1:0 0 0 1px color-mix(in oklab, var(--c-accent) 70%, transparent);
   --glow-2:0 6px 18px -8px color-mix(in oklab, var(--c-accent) 45%, transparent);
   --glow-3:0 0 0 0 transparent; --glow-full:var(--glow-1), var(--glow-2);
-  --blend-traveller:multiply;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
@@ -169,7 +171,6 @@
     --glow-1:0 0 0 1px color-mix(in oklab, var(--c-accent) 70%, transparent);
     --glow-2:0 6px 18px -8px color-mix(in oklab, var(--c-accent) 45%, transparent);
     --glow-3:0 0 0 0 transparent; --glow-full:var(--glow-1), var(--glow-2);
-    --blend-traveller:multiply;
   }
 }
 
@@ -187,29 +188,13 @@ img, svg, video, canvas { display:block; max-width:100%; }
 button, input, select, textarea { font:inherit; color:inherit; }
 button { background:none; border:0; cursor:pointer; touch-action:manipulation; }
 a { color:inherit; text-decoration:none; }
-h1,h2,h3 { font-family:var(--font-display); font-weight:600; text-wrap:balance; }
+h1,h2,h3 { font-weight:600; text-wrap:balance; }
 p { text-wrap:pretty; }
-:focus-visible { outline:2px solid var(--c-focus); outline-offset:3px; border-radius:var(--radius-sm); }
+:focus-visible { outline:2px solid var(--c-focus); outline-offset:2px; border-radius:var(--radius-sm); }
 :focus:not(:focus-visible) { outline:none; }
 ::selection { background:var(--c-accent); color:var(--c-on-accent); }
 
-/* Hero caption: absolutely positioned inside the stage, so opacity changes cost 0 CLS. */
-#loop-title { position:absolute; left:50%; transform:translateX(-50%);
-  top:calc(var(--ring-cy) + var(--ring-r) + 28px);
-  font-size:var(--text-lead); line-height:1.3; letter-spacing:var(--ls-h2);
-  color:var(--c-text); text-align:center; max-width:var(--measure-display);
-  /* painted from the first frame (Chrome never makes an element that first painted
-     at opacity 0 the LCP candidate); it settles in over --dur-6 after a 300 ms beat */
-  opacity:1; animation:caption-in var(--dur-6) var(--ease-enter) 300ms both; }
-#loop-title .echo { display:block; color:var(--c-text-muted); font-size:var(--text-sm); }
-@keyframes caption-in { from{opacity:.35; transform:translate(-50%, 6px)} to{opacity:1; transform:translate(-50%, 0)} }
-[data-stage-state="engaged"] #loop-title { opacity:0; transition:opacity var(--dur-5) var(--ease-exit); }
-#loop-status { position:absolute; left:50%; transform:translateX(-50%);
-  top:calc(var(--ring-cy) + var(--ring-r) + 28px); min-height:2.2em;
-  font-size:var(--text-lead); color:var(--c-text); text-align:center; }
-
 /* utilities used across the site */
-.u-glow { box-shadow:var(--glow-full); }
 .u-label { font-size:var(--text-xs); letter-spacing:var(--ls-label); text-transform:lowercase;
   font-weight:500; color:var(--c-text-muted); }
 .u-num { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
@@ -219,10 +204,90 @@ p { text-wrap:pretty; }
 .skip-link:focus-visible { left:var(--sp-4); top:var(--sp-4); z-index:var(--z-overlay);
   background:var(--c-surface-raised); color:var(--c-text); padding:var(--sp-3) var(--sp-4);
   border-radius:var(--radius-md); }
-@media (hover:hover) and (pointer:fine) {
-  .u-hover-lift:hover { transform:translateY(calc(-1 * var(--amp-lift)));
-    transition:transform var(--dur-2) var(--ease-snap); }
+
+/* ============================================================
+   THE DOCUMENT LAYER
+   Without JS this is a readable twelve-section essay. With JS
+   (html[data-loop-js], set before first paint) CSS collapses it
+   to the one selected account with zero reflow — §C.1, §E.
+   ============================================================ */
+
+#main { position:relative; padding:var(--sp-6) var(--gutter) 0; }
+
+/* The premise. Two lines, the LCP element, PAINTED (not faded from zero) in
+   frame one and settling to full over --dur-6 after a 300 ms beat — `06` §G,
+   kept verbatim. Under reduced motion it is simply at 100 % from frame one. */
+#loop-title {
+  font-family:var(--font-sans); font-size:var(--text-premise); line-height:1.18;
+  letter-spacing:var(--ls-h2); color:var(--c-text); max-width:var(--measure-read);
+  margin:0 auto var(--sp-5); text-wrap:balance; opacity:1;
 }
+#loop-title .line { display:block; }
+:root[data-motion="auto"] #loop-title {
+  animation:premise-in var(--dur-6) var(--ease-enter) 300ms both;
+}
+@keyframes premise-in { from{opacity:.35} to{opacity:1} }
+
+.account { max-width:var(--measure-read); margin:0 auto; padding-bottom:var(--sp-8); }
+.account h2 {
+  font-family:var(--font-read); font-size:var(--text-h3); line-height:1.2;
+  letter-spacing:var(--ls-h2); color:var(--c-text);
+}
+.account h2:focus-visible { outline:2px solid var(--c-focus); outline-offset:4px; }
+.standfirst {
+  font-size:var(--text-sm); line-height:var(--lh-sm); color:var(--c-text-secondary);
+  margin-top:var(--sp-2);
+}
+
+/* ---- the JS layout: one account, no reflow ---- */
+html[data-loop-js] .account { display:none; }
+html[data-loop-js][data-s="dog"]          #section-dog          { display:block; }
+html[data-loop-js][data-s="lamp"]         #section-lamp         { display:block; }
+html[data-loop-js][data-s="kettle"]       #section-kettle       { display:block; }
+html[data-loop-js][data-s="moth"]         #section-moth         { display:block; }
+html[data-loop-js][data-s="river"]        #section-river        { display:block; }
+html[data-loop-js][data-s="bus"]          #section-bus          { display:block; }
+html[data-loop-js][data-s="radio"]        #section-radio        { display:block; }
+html[data-loop-js][data-s="clock"]        #section-clock        { display:block; }
+html[data-loop-js][data-s="window"]       #section-window       { display:block; }
+html[data-loop-js][data-s="switch"]       #section-switch       { display:block; }
+html[data-loop-js][data-s="road"]         #section-road         { display:block; }
+html[data-loop-js][data-s="four-seconds"] #section-four-seconds { display:block; }
+
+/* ---- locked blocks (§C.6) ----
+   A block behind a key is in the document from the start; whether it EXISTS
+   is an attribute. `data-held` is written before first paint by #loop-keys
+   and thereafter at entry by the runtime, never while the account is on
+   screen. Without JS every block is simply there, which is the whole story. */
+html[data-loop-js] .blk[data-needs]:not([data-held]) { display:none; }
+
+/* ---- the belief (§C.9) ----
+   Both variants are in the DOM, so changing belief is one attribute on <html>:
+   no network, no remount, no layout shift beyond the two blocks that swap.
+   The zero-JS default is `valley`, and §H.4 E4 states that. */
+.blk[data-belief="hill"]                        { display:none; }
+html[data-belief="hill"] .blk[data-belief="hill"]   { display:block; }
+html[data-belief="hill"] .blk[data-belief="valley"] { display:none; }
+
+/* ---- `four seconds` (§C.10) ----
+   A locked block here is not hidden: it is the real sentence, made
+   transparent, so the blank rule's width, wrapping and line count are exact
+   at every viewport for free. Blanks fall to the end keeping their relative
+   story order; held blocks keep source order. */
+html[data-loop-js] #section-four-seconds .blocks { display:flex; flex-direction:column; }
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) {
+  display:block; order:1;
+  color:transparent; user-select:none; -webkit-user-select:none;
+}
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) .aside-body,
+html[data-loop-js] #section-four-seconds .blk[data-needs]:not([data-held]) summary {
+  color:transparent; text-decoration:none;
+}
+.blk[data-held] .see-also { display:none; }
+
+/* the belief choice is a control, not a sentence: it hides like any other
+   locked block even inside the account that blanks them. */
+html[data-loop-js] #section-four-seconds .blk.choice:not([data-held]) { display:none; }
 
 /* ---------- reduced motion: the calm variant, never nothing ---------- */
 @media (prefers-reduced-motion: reduce) {
@@ -237,13 +302,10 @@ p { text-wrap:pretty; }
     --ease-spring-magnetic:var(--ease-snap); --ease-spring-bounce:var(--ease-snap);
     --ease-elastic:var(--ease-snap); scroll-behavior:auto;
   }
-  #loop-title { animation-duration:var(--dur-5); animation-delay:0ms; }
+  #loop-title { animation:none; opacity:1; }
   .parallax, .tilt { transform:none !important; }
   *, *::before, *::after { animation-duration:var(--dur-5); animation-iteration-count:1;
     transition-duration:var(--dur-3); }
-  /* the ambient breathe survives — a still page is a dead page */
-  .is-ambient, .is-ambient * { animation-duration:12s !important;
-    animation-iteration-count:infinite !important; }
 }
 
 /* ---------- reduced motion, in-page toggle: the same overrides, verbatim ---------- */
@@ -258,135 +320,17 @@ p { text-wrap:pretty; }
   --ease-spring-magnetic:var(--ease-snap); --ease-spring-bounce:var(--ease-snap);
   --ease-elastic:var(--ease-snap); scroll-behavior:auto;
 }
-:root[data-motion="reduce"] #loop-title { animation-duration:var(--dur-5); animation-delay:0ms; }
+:root[data-motion="reduce"] #loop-title { animation:none; opacity:1; }
 :root[data-motion="reduce"] .parallax, :root[data-motion="reduce"] .tilt { transform:none !important; }
 :root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after {
   animation-duration:var(--dur-5); animation-iteration-count:1; transition-duration:var(--dur-3); }
-:root[data-motion="reduce"] .is-ambient, :root[data-motion="reduce"] .is-ambient * {
-  animation-duration:12s !important; animation-iteration-count:infinite !important; }
-
-/* the in-page toggle can also force full motion back on, overriding the media query */
-:root[data-motion="auto"] { scroll-behavior:auto; }
 
 @media (prefers-reduced-transparency: reduce) {
-  :root { --c-surface-overlay: var(--c-surface); } .glass { backdrop-filter:none; }
+  :root { --c-surface-overlay: var(--c-surface); }
 }
 @media (prefers-contrast: more) {
   :root { --color-loop-text-muted:#A6B0C3; --color-loop-border:#2E374A; }
 }
 @media (forced-colors: active) {
   :root { --c-accent:Highlight; --c-text:CanvasText; --c-canvas:Canvas; }
-  .u-glow { forced-color-adjust:none; }
 }
-
-/* ============================================================
-   App shell layout. Structural only — WP1/WP3 own the polish.
-   ============================================================ */
-#main { position:relative; }
-
-#stage {
-  position:relative;
-  width:100%;
-  height:100dvh;
-  min-height:100svh;
-  display:block;
-  overflow:hidden;
-  touch-action:none;
-  outline-offset:-3px;
-}
-#stage canvas { position:absolute; inset:0; width:100%; height:100%; }
-#loop-bg   { z-index:var(--z-bg); }
-#loop-room { z-index:var(--z-room); }
-#loop-ring { z-index:var(--z-ring); }
-#loop-title, #loop-status { z-index:var(--z-caption); pointer-events:none; }
-
-/* Without JS the corridor is a readable, scrollable twelve-section document.
-   With JS (html[data-loop-js], set synchronously before first paint) the stage
-   takes over and only the active room's shell is shown. No reflow, CLS 0. */
-.corridor { position:relative; }
-.room-shell { min-height:100dvh; padding:var(--sp-7) var(--gutter) var(--sp-9); }
-.room-shell h2 { font-size:var(--text-h2); letter-spacing:var(--ls-h2); }
-.room-shell .hook { color:var(--c-text-secondary); margin-top:var(--sp-2); }
-.room-shell .next-link { display:inline-block; margin-top:var(--sp-5);
-  color:var(--c-accent); border-bottom:1px solid var(--c-border-strong); padding-bottom:2px; }
-
-html[data-loop-js] #main { height:100dvh; overflow:hidden; }
-html[data-loop-js] .corridor {
-  position:absolute; inset:0; z-index:var(--z-room); pointer-events:none;
-}
-html[data-loop-js] .room-shell {
-  position:absolute; inset:0; min-height:0; padding:var(--sp-6) var(--gutter);
-  opacity:0; visibility:hidden; pointer-events:none;
-}
-html[data-loop-js] .room-shell[data-active="true"] {
-  opacity:1; visibility:visible; pointer-events:auto;
-  transition:opacity var(--dur-6) var(--ease-enter);
-}
-html[data-loop-js] .room-shell[data-active="true"] .next-link { pointer-events:auto; }
-/* In JS mode the shell text sits quietly at the top-left; the canvas carries the room. */
-html[data-loop-js] .room-shell h2 { font-size:var(--text-h3); color:var(--c-text); }
-html[data-loop-js] .room-shell .hook { font-size:var(--text-sm); }
-
-/* ---------- Ringway ---------- */
-.ringway { position:fixed; z-index:var(--z-nav); display:flex; align-items:center;
-  justify-content:center; gap:var(--sp-2); }
-@media (pointer:fine) {
-  .ringway { right:24px; top:50%; transform:translateY(-50%); flex-direction:column; }
-}
-@media (pointer:coarse), (max-width:720px) {
-  .ringway { left:0; right:0; bottom:max(16px, env(safe-area-inset-bottom));
-    flex-direction:row; flex-wrap:nowrap; transform:none; top:auto; }
-}
-.ringway a {
-  display:grid; place-items:center;
-  width:var(--tap-min); height:var(--tap-min); min-width:44px; min-height:44px;
-  border-radius:999px;
-}
-@media (pointer:fine) { .ringway a { width:32px; height:32px; min-width:32px; min-height:32px; } }
-.ringway .notch {
-  width:10px; height:10px; border-radius:999px;
-  border:1px solid var(--c-border-strong); background:transparent;
-}
-.ringway a[data-visited="true"] .notch {
-  background:var(--c-accent); border-color:var(--c-accent);
-  box-shadow:inset 0 0 0 1px var(--c-canvas);
-}
-.ringway a[aria-current="page"] .notch {
-  outline:1px solid var(--c-accent-hi); outline-offset:3px;
-}
-.ringway a[aria-current="page"]::after {
-  content:""; position:absolute; width:3px; height:3px; border-radius:999px;
-  background:var(--c-accent-hi);
-}
-.ringway a { position:relative; }
-.ringway .hub { font-size:var(--text-xs); color:var(--c-accent-3);
-  font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
-
-/* ---------- Next Arc ---------- */
-.next-arc { position:fixed; left:50%; transform:translateX(-50%);
-  bottom:calc(max(16px, env(safe-area-inset-bottom)) + 56px);
-  z-index:var(--z-nav); min-height:48px; display:grid; place-items:center;
-  padding:0 var(--sp-4); color:var(--c-text-secondary); font-size:var(--text-sm); }
-@media (pointer:fine) { .next-arc { bottom:24px; } }
-.next-arc:hover, .next-arc:focus-visible { color:var(--c-accent); }
-
-/* ---------- footer controls ---------- */
-.loop-footer { position:fixed; left:var(--gutter); bottom:var(--gutter-b);
-  z-index:var(--z-nav); display:flex; gap:var(--sp-4); align-items:center; }
-@media (pointer:coarse), (max-width:720px) { .loop-footer { bottom:calc(var(--gutter-b) + 56px); } }
-.loop-footer button, .loop-footer a {
-  min-height:44px; display:inline-flex; align-items:center; padding:0 var(--sp-2);
-  font-size:var(--text-xs); letter-spacing:var(--ls-label); color:var(--c-text-muted);
-  border-radius:var(--radius-sm);
-}
-.loop-footer button[aria-pressed="true"] { color:var(--c-accent); }
-.loop-footer button:hover, .loop-footer a:hover { color:var(--c-text); }
-
-html:not([data-loop-js]) .ringway, html:not([data-loop-js]) .next-arc { position:static; transform:none; }
-/* Without JS the stage has nothing to draw: it collapses so the first viewport is
-   the title and the start of the twelve-section document, not an empty screen. */
-html:not([data-loop-js]) #stage { height:auto; min-height:0; overflow:visible; }
-html:not([data-loop-js]) #stage canvas { display:none; }
-html:not([data-loop-js]) #loop-title, html:not([data-loop-js]) #loop-status {
-  position:static; transform:none; animation:none; opacity:1; max-width:none;
-  padding:var(--sp-7) var(--gutter) 0; text-align:left; }

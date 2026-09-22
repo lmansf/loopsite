@@ -1,0 +1,166 @@
+/* ============================================================
+   src/styles/night.css — THE NIGHT, THE ASK BAR, THE HUB.
+   **OWNED BY WP-C.** Spec: §C.7, §C.8, §F.3.
+   Imported by globals.css. Tokens only.
+   ============================================================ */
+
+/* ---------- the night: twelve slots, in flow (§I.7) ----------
+   repeat(auto-fit, minmax(44px, 1fr)) — 6x2 at 360, 5x3 at 320, 3x4 at 200 %
+   zoom. Never off-screen, never a media query, never a horizontal scroller. */
+.night {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  max-width: var(--measure-read);
+}
+.night > a {
+  position: relative;
+  display: grid;
+  grid-template-rows: 12px auto;
+  align-content: center;
+  justify-items: center;
+  min-width: 44px; min-height: 44px;
+  padding: var(--sp-1);
+  border-radius: var(--radius-sm);
+  color: var(--c-text-muted);
+}
+.night .label {
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  letter-spacing: var(--ls-label);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+/* The gap subline: the account's standfirst, on hover and on focus (rubric E3).
+   It is off the flow, so showing it moves nothing. */
+.night .gap {
+  position: absolute; left: 50%; bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  width: max-content; max-width: 18rem;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--c-border); border-radius: var(--radius-sm);
+  background: var(--c-surface-raised);
+  font-size: var(--text-xs); line-height: 1.35; color: var(--c-text-secondary);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  z-index: var(--z-nav);
+}
+@media (hover: hover) and (pointer: fine) {
+  .night > a:hover .gap, .night > a:focus-visible .gap { opacity: 1; visibility: visible; }
+}
+
+/* three states, never colour alone (§C.7) */
+.night .mark {
+  width: 10px; height: 10px; border-radius: 999px;
+  border: 1px solid var(--c-border-strong); background: transparent;
+  align-self: end;
+}
+.night > a[data-state="read"] .mark,
+.night > a[data-state="changed"] .mark {
+  background: var(--c-accent); border-color: var(--c-accent);
+  box-shadow: inset 0 0 0 2px var(--c-canvas);   /* the inner hairline rule */
+}
+/* changed: a SECOND SHORT BAR above the mark. A shape, not a colour. */
+.night > a[data-state="changed"]::before {
+  content: '';
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc(50% - 16px);
+  width: 8px; height: 2px; background: var(--c-accent-hi);
+}
+:root[data-motion="auto"] .night > a[data-state="changed"]::before {
+  animation: bar-in 200ms var(--ease-enter) both;
+}
+@keyframes bar-in { from { opacity: 0 } to { opacity: 1 } }
+.night > a:hover { color: var(--c-text); }
+.night > a[aria-current="page"] { color: var(--c-text); }
+.night > a[aria-current="page"] .mark { outline: 1px solid var(--c-accent-hi); outline-offset: 3px; }
+
+/* ---------- the ask bar: the one fixed element (§C.7, §F.3) ----------
+   pointer-events none on the bar, auto on its children — the standing rule
+   from `08` §6. Any new fixed overlay ships the same pair. */
+.ask-bar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  z-index: var(--z-nav);
+  display: none;
+  align-items: center; gap: var(--sp-3);
+  min-height: var(--bar-h);
+  padding: 6px var(--gutter) max(10px, env(safe-area-inset-bottom));
+  background: var(--c-surface-overlay);
+  border-top: 1px solid var(--c-border);
+  pointer-events: none;
+}
+.ask-bar > * { pointer-events: auto; }
+.ask-text {
+  flex: 1;
+  display: inline-flex; align-items: center;
+  min-height: 44px;
+  font-size: var(--text-sm); color: var(--c-text);
+}
+.ask-bar:hover .ask-text, .ask-bar:focus-visible .ask-text { color: var(--c-accent); }
+/* The hub. Its box is reserved from frame one, so the tick to `1/5` shifts
+   nothing. `n/5` is the only numeral the UI may print, so at zero it prints
+   nothing rather than a `0` (§C.8). */
+.hub {
+  display: inline-flex; align-items: center; justify-content: flex-end;
+  min-width: 3ch; min-height: 44px;
+  font-size: var(--text-sm); line-height: 1; color: var(--c-accent-3);
+}
+:root[data-motion="auto"] .hub[data-found]:not([data-found="0"]) {
+  animation: hub-tick 320ms var(--ease-snap) both;
+}
+@keyframes hub-tick { 0% { opacity: .4 } 60% { opacity: 1 } 100% { opacity: 1 } }
+
+/* One bar per account is rendered; CSS shows the one that matches
+   html[data-s], so the bar names the right destination in the first painted
+   frame for every ?s= — no JavaScript, no flash, no rewrite after hydration. */
+html[data-loop-js][data-s="dog"]          .ask-bar[data-slug="dog"],
+html[data-loop-js][data-s="lamp"]         .ask-bar[data-slug="lamp"],
+html[data-loop-js][data-s="kettle"]       .ask-bar[data-slug="kettle"],
+html[data-loop-js][data-s="moth"]         .ask-bar[data-slug="moth"],
+html[data-loop-js][data-s="river"]        .ask-bar[data-slug="river"],
+html[data-loop-js][data-s="bus"]          .ask-bar[data-slug="bus"],
+html[data-loop-js][data-s="radio"]        .ask-bar[data-slug="radio"],
+html[data-loop-js][data-s="clock"]        .ask-bar[data-slug="clock"],
+html[data-loop-js][data-s="window"]       .ask-bar[data-slug="window"],
+html[data-loop-js][data-s="switch"]       .ask-bar[data-slug="switch"],
+html[data-loop-js][data-s="road"]         .ask-bar[data-slug="road"],
+html[data-loop-js][data-s="four-seconds"] .ask-bar[data-slug="four-seconds"] { display: flex; }
+
+/* Without JavaScript the document is one long read, so one bar is shown: the
+   landing account's. Every other destination is a link in the night and an
+   ask card at the foot of each account. */
+html:not([data-loop-js]) .ask-bar[data-slug="dog"] { display: flex; }
+
+/* ---------- desktop: the night becomes the right-hand rail (§F.3) ---------- */
+@media (min-width: 900px) {
+  .night {
+    position: fixed; right: var(--gutter); top: 50%;
+    transform: translateY(-50%);
+    grid-template-columns: 1fr;
+    width: 10rem; margin: 0;
+    z-index: var(--z-nav);
+  }
+  .night > a {
+    grid-template-rows: auto;
+    grid-template-columns: 12px 1fr;
+    justify-items: start; align-items: center;
+    gap: var(--sp-2);
+    height: 44px;
+  }
+  .night .mark { align-self: center; }
+  .night .label { text-align: left; }
+  .night .gap { left: auto; right: calc(100% + 8px); bottom: auto; top: 50%;
+    transform: translateY(-50%); }
+  .night > a[data-state="changed"]::before { left: 4px; top: 8px; transform: none; }
+  .ask-bar {
+    left: auto; right: var(--gutter); bottom: var(--gutter-b);
+    width: 208px; min-height: 64px;
+    border: 1px solid var(--c-border); border-radius: var(--radius-md);
+    padding: var(--sp-2) var(--sp-3);
+  }
+  html:not([data-loop-js]) .night { position: static; transform: none; width: auto;
+    grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); margin-top: var(--sp-4); }
+}

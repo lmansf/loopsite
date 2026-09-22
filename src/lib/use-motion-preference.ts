@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { readState, writeState } from './storage';
+import { readState, writeState } from './storage.ts';
 
 export type MotionPreference = 'auto' | 'reduce';
 

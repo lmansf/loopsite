@@ -8,7 +8,7 @@
  * No server round trip, ever.
  */
 
-import { rgba, token } from './tokens';
+import { rgba, token } from './tokens.ts';
 
 function download(url: string, filename: string, revoke: boolean): void {
   const a = document.createElement('a');

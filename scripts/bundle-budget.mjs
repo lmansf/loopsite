@@ -2,15 +2,25 @@
 /**
  * scripts/bundle-budget.mjs — the byte gate.
  *
- * Spec: design/05-build-spec.md §F.1 ("Budgets"), §H.1.
+ * Spec: design/11-narrative-build-spec.md §E, §H.1. **OWNED BY WP-D.**
  *
- *   Tier A  render-blocking (the stylesheet + the inline bootstrap)  <= 14 KB gz, HARD
- *   Tier B  first-party JS on the landing route, excluding the
- *           React/Next runtime floor                                 <= 90 KB gz, HARD
- *   Tier C  total JS transferred on the landing route                <= 230 KB gz, soft
- *   CSS     total                                                    <= 14 KB gz
- *   Fonts   0 bytes.   Raster images   0 bytes.
- *   Rooms   each room's lazy chunk <= its declared budgetKb
+ *   Tier A   render-blocking (the stylesheet + the inline bootstrap) <= 14 KB gz, HARD
+ *   Tier B   first-party JS on the landing route, excluding the
+ *            React/Next runtime floor                                <= 90 KB gz, HARD
+ *   Tier C   total JS transferred on the landing route               <= 230 KB gz, soft
+ *   CSS      total                                                   <= 14 KB gz
+ *   Document the prerendered landing HTML, gzipped                   <= 40 KB gz, HARD
+ *   Flight   the inline RSC payload (self.__next_f.push), gzipped    <= 18 KB gz, HARD
+ *   Fonts    0 bytes.   Raster images   0 bytes.
+ *   Figures  every lazy chunk <= 2 KB gz
+ *
+ * The document and the flight are the only genuinely new risk in this build:
+ * the page now carries ~5000 words, and it carries them TWICE — once as the
+ * HTML the reader gets and once in the inline payload React uses to reconcile.
+ * The prose is injected as one compiled string per account precisely so the
+ * second copy is the text and not a tree of several thousand element
+ * descriptors (§E item 2). If the flight budget starts failing, the first
+ * thing to look at is markup that has become JSX and should be a string.
  *
  * It parses the prerendered landing document in .next/server/app/index.html,
  * gzips every asset it references, and subtracts the framework floor recorded
@@ -33,6 +43,9 @@ const BUDGETS = {
   tierB: 90 * KB,
   tierC: 230 * KB,
   css: 14 * KB,
+  doc: 40 * KB,
+  flight: 18 * KB,
+  figure: 2 * KB,
 };
 
 function gz(buf) {
@@ -75,7 +88,21 @@ if (!existsSync(HTML)) {
   process.exit(1);
 }
 
-const html = readFileSync(HTML, 'utf8');
+const htmlBuf = readFileSync(HTML);
+const html = htmlBuf.toString('utf8');
+
+/* ------------------------------------------- the document and the flight */
+
+// The whole prerendered landing document, as the reader receives it.
+const docBytes = gz(htmlBuf);
+
+// The inline RSC flight payload: every `self.__next_f.push(...)` script at the
+// end of <body>. Not render-blocking, so it is not Tier A — but it is the one
+// place the 5000 words can quietly ship a second time.
+const flightChunks = [...html.matchAll(/self\.__next_f\.push\(([\s\S]*?)\)<\/script>/g)].map(
+  (m) => m[1],
+);
+const flightBytes = flightChunks.length > 0 ? gz(Buffer.from(flightChunks.join(''), 'utf8')) : 0;
 
 /* ------------------------------------------------------------ tier A */
 
@@ -182,13 +209,15 @@ const rasterBytes = walk(join(NEXT, 'static'))
 
 /* ------------------------------------------------------------ report */
 
-console.log('LOOP — byte budgets (gzip -9, landing route)');
+console.log('the same four seconds — byte budgets (gzip -9, landing route)');
 console.log('─'.repeat(64));
 console.log(`  Tier A  render-blocking   ${fmt(tierA).padStart(10)}  / ${fmt(BUDGETS.tierA)}  hard`);
 console.log(`          ├─ css            ${fmt(cssBytes).padStart(10)}  / ${fmt(BUDGETS.css)}`);
 console.log(`          └─ inline boot    ${fmt(inlineBytes).padStart(10)}  / 2.0 KB`);
 console.log(`  Tier B  first-party JS    ${fmt(tierB).padStart(10)}  / ${fmt(BUDGETS.tierB)}  hard`);
 console.log(`  Tier C  total JS          ${fmt(tierC).padStart(10)}  / ${fmt(BUDGETS.tierC)}  soft`);
+console.log(`  Document  landing HTML    ${fmt(docBytes).padStart(10)}  / ${fmt(BUDGETS.doc)}  hard`);
+console.log(`  Flight    inline RSC      ${fmt(flightBytes).padStart(10)}  / ${fmt(BUDGETS.flight)}  hard`);
 console.log(`  Fonts                     ${String(fontBytes).padStart(10)} B  / 0 B`);
 console.log(`  Rasters                   ${String(rasterBytes).padStart(10)} B  / 0 B`);
 console.log(`  ${baselineNote}`);
@@ -203,28 +232,22 @@ if (tierA > BUDGETS.tierA) fail(`Tier A ${fmt(tierA)} over ${fmt(BUDGETS.tierA)}
 if (inlineBytes > 2 * KB) fail(`inline bootstrap ${fmt(inlineBytes)} over 2.0 KB`);
 if (cssBytes > BUDGETS.css) fail(`CSS ${fmt(cssBytes)} over ${fmt(BUDGETS.css)}`);
 if (tierB > BUDGETS.tierB) fail(`Tier B ${fmt(tierB)} over ${fmt(BUDGETS.tierB)}`);
+if (docBytes > BUDGETS.doc) fail(`the document is ${fmt(docBytes)}, over ${fmt(BUDGETS.doc)}`);
+if (flightBytes > BUDGETS.flight) {
+  fail(`the inline flight payload is ${fmt(flightBytes)}, over ${fmt(BUDGETS.flight)}`);
+}
 if (tierC > BUDGETS.tierC) console.warn(`! Tier C ${fmt(tierC)} over the soft ${fmt(BUDGETS.tierC)}`);
 if (fontBytes > 0) fail(`${fontBytes} font bytes shipped — the budget is zero`);
 if (rasterBytes > 0) fail(`${rasterBytes} raster bytes shipped — the budget is zero`);
 
-// Every room's lazy chunk must be within its declared budgetKb. Turbopack does
-// not name chunks after their source module, so this asserts the ceiling: no
-// lazy chunk may exceed the largest declared room budget.
-const REGISTRY = readFileSync(join(ROOT, 'src', 'sections', 'registry.ts'), 'utf8');
-const slugs = [...REGISTRY.matchAll(/^\/\/ SLOT \S+\s+(\S+)$/gm)].map((m) => m[1]);
-const budgets = {};
-for (const slug of slugs) {
-  const idx = join(ROOT, 'src', 'sections', slug, 'index.ts');
-  if (!existsSync(idx)) continue;
-  const m = readFileSync(idx, 'utf8').match(/budgetKb:\s*(\d+)/);
-  if (m) budgets[slug] = Number(m[1]);
-}
-const maxRoom = Math.max(...Object.values(budgets), 0);
-const over = largestLazy.filter((c) => c.size > maxRoom * KB);
-console.log(`  room budgets: ${Object.entries(budgets).map(([k, v]) => `${k}:${v}`).join(' ')}`);
-console.log(`  largest declared room budget: ${maxRoom} KB`);
-for (const c of over) {
-  fail(`lazy chunk ${c.p.replace(ROOT + '/', '')} is ${fmt(c.size)}, over the ${maxRoom} KB room ceiling`);
+// Every figure's lazy chunk must be <= 2 KB gz (§H.1). `src/figures/**` is
+// WP-C's and does not exist yet, so an empty lazy set is reported, not failed:
+// the ceiling is what is enforced, and nothing may cross it.
+console.log(`  lazy chunks over ${fmt(BUDGETS.figure)}: ${largestLazy.filter((c) => c.size > BUDGETS.figure).length}`);
+for (const c of largestLazy) {
+  if (c.size > BUDGETS.figure) {
+    fail(`lazy chunk ${c.p.replace(ROOT + '/', '')} is ${fmt(c.size)}, over the ${fmt(BUDGETS.figure)} figure ceiling`);
+  }
 }
 
 if (process.exitCode) {

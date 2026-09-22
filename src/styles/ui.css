@@ -1,0 +1,35 @@
+/* ============================================================
+   src/styles/ui.css — the footer controls. **OWNED BY WP-D.**
+   Spec: §C.13 (the three strings), §F.3 (44 px, 8 px), §F.4.
+   Imported by globals.css. Tokens only.
+   ============================================================ */
+
+.loop-footer {
+  display: flex; flex-wrap: wrap; gap: var(--sp-4);
+  align-items: center;
+  max-width: var(--measure-read);
+  margin: 0 auto;
+  padding: var(--sp-5) var(--gutter)
+           calc(var(--bar-h) + var(--sp-6) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--c-border);
+}
+.loop-footer button {
+  display: inline-flex; align-items: center;
+  min-height: 44px; padding: 0 var(--sp-2);
+  font-size: var(--text-xs); letter-spacing: var(--ls-label);
+  color: var(--c-text-muted);
+  border-radius: var(--radius-sm);
+  border-bottom: 1px solid transparent;
+  transition: color var(--dur-2) var(--ease-snap);
+}
+.loop-footer button:hover { color: var(--c-text); border-bottom-color: var(--c-border-strong); }
+.loop-footer button:active { color: var(--c-accent-hi); }
+.loop-footer button[aria-pressed="true"] {
+  color: var(--c-accent);
+  border-bottom-color: var(--c-accent);
+}
+.loop-footer button[data-busy="true"] { color: var(--c-accent); }
+
+@media (min-width: 900px) {
+  .loop-footer { padding-bottom: calc(var(--bar-h) + var(--sp-6)); }
+}
