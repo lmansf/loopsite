@@ -248,3 +248,19 @@ so `fired[]` is filled before any room's callback runs on the same frame.
 | Raster images | **0 bytes** |
 | Largest lazy chunk | 3.6 KB gz (the placeholder rooms) |
 | `pnpm verify` | green — 19 unit, 107 e2e, 16 a11y |
+
+---
+
+## G. Integration ruling (orchestrator, after the WP1–WP7 merge)
+
+**`pnpm build` is `next build --webpack`.** Turbopack (Next 16.3.5) merged all
+seventeen rooms' `import('./Room')` targets into ONE shared lazy chunk (~30 KB
+gz) and emitted a second copy of it on the landing route. That breaks the
+per-room `budgetKb` gate and makes every visitor download every room before
+seeing ORIGIN. With webpack each room is its own chunk (largest 7.2 KB gz),
+Tier B fell 43.7 → 39.0 KB and Tier C 218 → 213 KB. `perf-baseline.json` was
+re-recorded (floor 174,266 B gz, bundler webpack). `scripts/bundle-budget.mjs`
+now ignores the Pages-Router runtime files webpack emits (`framework-*`,
+`main-*`, `polyfills-*`, `webpack-*`) and any chunk referenced by a prerendered
+page when it applies the room ceiling. `next dev` still uses Turbopack, which is
+fine for development.

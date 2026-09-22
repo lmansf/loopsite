@@ -153,7 +153,19 @@ const tierB = Math.max(0, tierC - floor);
 const chunkDir = join(NEXT, 'static', 'chunks');
 const allChunks = walk(chunkDir).filter((p) => p.endsWith('.js'));
 const landing = new Set(scriptSrcs.map((s) => assetPath(s)));
-const lazyChunks = allChunks.filter((p) => !landing.has(p));
+// Chunks referenced by ANY prerendered page (the alias routes, /_not-found)
+// are route entries, not room chunks; the webpack bundler also emits the
+// Pages-Router runtime (framework-*, main-*, polyfills-*, webpack-*, pages/)
+// which the App Router landing route never requests.
+const referenced = new Set();
+for (const htmlPath of walk(join(NEXT, 'server')).filter((p) => p.endsWith('.html'))) {
+  const doc = readFileSync(htmlPath, 'utf8');
+  for (const m of doc.matchAll(/<script[^>]+src="([^"]+)"/g)) {
+    if (m[1].startsWith('/_next/')) referenced.add(assetPath(m[1]));
+  }
+}
+const RUNTIME = /(^|[\/])(framework|main|main-app|polyfills|webpack)-[^\/]*\.js$|[\/](pages|app)[\/]/;
+const lazyChunks = allChunks.filter((p) => !landing.has(p) && !referenced.has(p) && !RUNTIME.test(p));
 const largestLazy = lazyChunks
   .map((p) => ({ p, size: gz(readFileSync(p)) }))
   .sort((a, b) => b.size - a.size)
