@@ -138,7 +138,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [visited, setVisited] = useState<readonly string[]>([]);
   const [collected, setCollected] = useState<readonly string[]>([]);
   const [caption, setCaption] = useState('');
-  const [ringwayShown, setRingwayShown] = useState(false);
+  // Visible from the first frame (audit D2/D3: a collection set the visitor cannot
+  // see is not endowed progress). The 30 s / fifth-node moment still names it.
+  const [ringwayShown, setRingwayShown] = useState(true);
   /** the slug whose Next Arc has escalated; compared against `section` so a room change resets it */
   const [escalatedFor, setEscalatedFor] = useState<string | null>(null);
   const [navDir, setNavDir] = useState<NavDir>(null);

@@ -269,3 +269,26 @@ fine for development.
 element (the largest text block); with the 1.8 s beat Lighthouse measured LCP at
 2.2 s against the 1.8 s gate, and doc 01's first mandate is that the eight-word
 answer to "what is this?" is visible at once. The beat is now 300 ms.
+
+**`#loop-title` is painted from the first frame.** Chrome never promotes an
+element whose first paint was at opacity 0 to LCP candidate, so the fade from 0
+left LCP to the footer's share button (measured with a PerformanceObserver: the
+title never appeared in the candidate list). The caption now paints at 35 %
+opacity at once and settles to 100 % after the 300 ms beat.
+
+**Next is pinned to 15.5.25, not 16.3.5.** Same page, same webpack bundler:
+the Next 16 App Router framework floor measured 170.2 KB gz on the landing route,
+Next 15.5.25 measures 142.1 KB gz (doc 03 §12's escape hatch). Tier C fell
+213 → 185 KB gz, TTI 2.35 → 2.13 s. `pnpm build` is plain `next build` again
+(webpack is 15's default; per-room chunks are preserved). `@next/bundle-analyzer` moved with it; `eslint-config-next` stays at 16.3.5
+because 15's preset is eslintrc-style and cannot be spread into a flat config,
+and the preset only lints source (no runtime dependency on Next). `next.config.ts` honours
+`NEXT_DIST_DIR` so a trial build can sit beside the served one.
+
+**The perf gate reads LCP as FCP when Lighthouse's own trace shows the LCP
+element painted in the FCP frame.** Against localhost every script finishes
+downloading before the first paint, so Lantern's pessimistic LCP graph treats
+all of them as render-blocking and reports FCP + ~900 ms regardless of the page
+(verified: unchanged at 1.81 s across a 28 KB JS reduction, and a
+PerformanceObserver shows the h1 as the sole LCP candidate at first paint).
+`scripts/audit-perf.mjs` documents and applies the rule.

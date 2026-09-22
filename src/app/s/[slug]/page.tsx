@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ROOMS, bySlug } from '@/sections/registry';
+import { ShellFor } from '@/sections/shells';
 import { AliasRedirect } from './AliasRedirect';
 
 /**
@@ -37,12 +38,11 @@ export default async function AliasPage({ params }: { params: Promise<{ slug: st
   const { slug } = await params;
   const room = bySlug(slug);
   if (!room) notFound();
-  const Shell = room.Shell;
 
   return (
     <div className="room-shell" data-slug={room.id} data-active="true">
       <AliasRedirect slug={String(room.id)} />
-      <Shell />
+      <ShellFor slug={room.id} />
     </div>
   );
 }

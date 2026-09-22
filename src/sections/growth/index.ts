@@ -1,5 +1,4 @@
 import { asSectionId, type SectionModule } from '@/lib/types';
-import { Shell } from './Shell';
 
 const growth: SectionModule = {
   id: asSectionId('growth'),
@@ -9,7 +8,6 @@ const growth: SectionModule = {
   next: asSectionId('orbit'),
   notch: 7,
   kind: 'expansion',
-  Shell,
   load: () => import('./Room'),
   reservedHeight: '100dvh',
   budgetKb: 11,

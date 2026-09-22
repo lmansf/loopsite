@@ -19,7 +19,6 @@
  */
 
 import { asSectionId, type SectionModule } from '@/lib/types';
-import { Shell } from './Shell';
 
 const example: SectionModule = {
   id: asSectionId('_example'),
@@ -31,7 +30,6 @@ const example: SectionModule = {
   // so it has none and never appears in the Ringway.
   notch: null,
   kind: 'expansion',
-  Shell,
   load: () => import('./Room'),
   reservedHeight: '100dvh',
   budgetKb: 6,

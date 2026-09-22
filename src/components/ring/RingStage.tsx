@@ -399,7 +399,9 @@ export function RingStage({ heavy = false, onGeometry }: { heavy?: boolean; onGe
       const top = -Math.PI / 2;
 
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = rgba('--c-border-strong', 1);
+      // --c-text-muted, not --c-border-strong: the one control the copy tells you
+      // to touch must clear 3:1 against the canvas (audit G4)
+      ctx.strokeStyle = rgba('--c-text-muted', 1);
       ctx.beginPath();
       if (door) {
         ctx.arc(cx, cy, R, top + half * Math.PI * 2, top - half * Math.PI * 2 + Math.PI * 2);

@@ -1,5 +1,4 @@
 import { asSectionId, type SectionModule } from '@/lib/types';
-import { Shell } from './Shell';
 
 const mirror: SectionModule = {
   id: asSectionId('mirror'),
@@ -9,7 +8,6 @@ const mirror: SectionModule = {
   next: asSectionId('growth'),
   notch: 6,
   kind: 'expansion',
-  Shell,
   load: () => import('./Room'),
   reservedHeight: '100dvh',
   budgetKb: 9,

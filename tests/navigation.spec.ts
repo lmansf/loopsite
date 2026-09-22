@@ -295,12 +295,12 @@ test('endowed progress: ORIGIN is lit on arrival, the rest are dark, and state i
   await expect(page.locator('nav[aria-label="rooms"] .hub')).toHaveCount(0);
 });
 
-test('the Ringway fades in on the fifth node (§B) and is present in the tree before that', async ({
+test('the Ringway is visible from the first frame and the fifth node names it (§B)', async ({
   page,
 }) => {
   await page.goto('/');
   const nav = page.locator('nav[aria-label="rooms"]');
-  await expect(nav).toHaveAttribute('data-shown', 'false');
+  await expect(nav).toHaveAttribute('data-shown', 'true');
   await expect(nav.locator('a')).toHaveCount(12);
   await page.locator('#stage').focus();
   for (let i = 0; i < 5; i++) {

@@ -23,7 +23,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const NEXT = join(ROOT, '.next');
+const NEXT = join(ROOT, process.env.NEXT_DIST_DIR || '.next');
 const HTML = join(NEXT, 'server', 'app', 'index.html');
 const BASELINE = join(ROOT, 'perf-baseline.json');
 

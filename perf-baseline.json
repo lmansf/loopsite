@@ -1,9 +1,9 @@
 {
-  "note": "The framework floor: everything the landing route loads that is NOT Loop's own landing code. Measured with gzip -9 from this repo's own /_not-found route, which contains no first-party client code but does carry the root layout (@vercel/analytics + @vercel/speed-insights, +2.3 KB gz). Tier B = Tier C - frameworkFloorGz = shell + RingStage + clock + the registry + the active room. Re-recorded after switching `pnpm build` to `next build --webpack`: Turbopack merged every room's dynamic import into one shared ~30 KB chunk (and duplicated it on the landing route), which defeats the per-room lazy budgets; webpack emits one chunk per room.",
+  "note": "The framework floor: everything the landing route loads that is NOT Loop's own landing code. Measured with gzip -9 from this repo's own /_not-found route, which contains no first-party client code but does carry the root layout (@vercel/analytics + @vercel/speed-insights, +2.3 KB gz). Tier B = Tier C - frameworkFloorGz = shell + RingStage + clock + the registry + the active room. Re-recorded after switching `pnpm build` to `next build --webpack`: Turbopack merged every room's dynamic import into one shared ~30 KB chunk (and duplicated it on the landing route), which defeats the per-room lazy budgets; webpack emits one chunk per room. Re-recorded again on next@15.5.25 (webpack default): the Next 16.3.5 App Router floor was 170.2 KB gz here; 15.5.25 is 142.1 KB gz for the same page, the escape hatch doc 03 \u00a712 recorded.",
   "recordedAt": "2026-09-22",
-  "next": "16.3.5",
+  "next": "15.5.25",
   "react": "19.3.0",
   "bundler": "webpack",
-  "frameworkFloorGz": 174266,
+  "frameworkFloorGz": 145487,
   "howToReRecord": "pnpm build && node scripts/bundle-budget.mjs  (it prints the measured floor; update this number and say why in the PR)"
 }

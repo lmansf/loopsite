@@ -76,6 +76,7 @@ export function Ringway({ complete = false }: { complete?: boolean }) {
               <span className="notch" aria-hidden="true" />
               <span className="label" aria-hidden="true">
                 {room.title}
+                {room.hook ? <span className="gap">{room.hook}</span> : null}
               </span>
               <span className="u-sr">
                 {room.title} — {isVisited ? 'visited' : 'not yet visited'}

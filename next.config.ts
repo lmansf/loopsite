@@ -10,6 +10,8 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  // A second build can live beside the served one (NEXT_DIST_DIR=.next-trial).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   reactStrictMode: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,

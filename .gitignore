@@ -39,3 +39,5 @@ next-env.d.ts
 
 # agent worktrees
 /.claude/worktrees/
+
+/.next-trial/

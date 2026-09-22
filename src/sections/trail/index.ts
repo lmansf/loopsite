@@ -1,5 +1,4 @@
 import { asSectionId, type SectionModule } from '@/lib/types';
-import { Shell } from './Shell';
 
 const trail: SectionModule = {
   id: asSectionId('trail'),
@@ -9,7 +8,6 @@ const trail: SectionModule = {
   next: asSectionId('swarm'),
   notch: 4,
   kind: 'core',
-  Shell,
   load: () => import('./Room'),
   reservedHeight: '100dvh',
   budgetKb: 12,

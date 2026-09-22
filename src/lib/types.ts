@@ -178,7 +178,12 @@ export interface SectionModule {
   /** 1..12, or null for hidden destinations */
   notch: number | null;
   kind: 'core' | 'expansion' | 'hidden';
-  Shell: React.ComponentType<{ children?: React.ReactNode }>;
+  /**
+   * The server-rendered shell is NOT carried here: registry consumers are client
+   * modules, and a Shell on the module would ship all seventeen shells to the
+   * browser. Server code resolves it through `src/sections/shells.tsx`.
+   */
+  Shell?: React.ComponentType<{ children?: React.ReactNode }>;
   load: () => Promise<{ default: React.ComponentType<SectionProps> }>;
   /** '100dvh' */
   reservedHeight: string;

@@ -1,5 +1,4 @@
 import { asSectionId, type SectionModule } from '@/lib/types';
-import { Shell } from './Shell';
 
 const swarm: SectionModule = {
   id: asSectionId('swarm'),
@@ -9,7 +8,6 @@ const swarm: SectionModule = {
   next: asSectionId('mirror'),
   notch: 5,
   kind: 'expansion',
-  Shell,
   load: () => import('./Room'),
   reservedHeight: '100dvh',
   budgetKb: 12,

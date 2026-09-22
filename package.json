@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.33.0",
-  "engines": { "node": ">=22.19.0" },
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -16,20 +18,20 @@
     "budget": "node scripts/bundle-budget.mjs",
     "audit:bundle": "node scripts/bundle-budget.mjs",
     "audit:perf": "node scripts/audit-perf.mjs",
-    "analyze": "ANALYZE=true next build --webpack",
+    "analyze": "ANALYZE=true next build",
     "verify": "pnpm typecheck && pnpm lint && pnpm build && pnpm budget && pnpm test:unit && pnpm test:e2e && pnpm test:a11y"
   },
   "dependencies": {
     "@vercel/analytics": "2.0.1",
     "@vercel/speed-insights": "2.0.0",
     "motion": "13.4.0",
-    "next": "16.3.5",
+    "next": "15.5.25",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
-    "@next/bundle-analyzer": "16.3.5",
+    "@next/bundle-analyzer": "15.5.25",
     "@playwright/test": "1.56.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "26.6.2",

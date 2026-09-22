@@ -1,5 +1,4 @@
 import { asSectionId, type SectionModule } from '@/lib/types';
-import { Shell } from './Shell';
 
 const silence: SectionModule = {
   id: asSectionId('silence'),
@@ -9,7 +8,6 @@ const silence: SectionModule = {
   next: asSectionId('origin'),
   notch: null,
   kind: 'hidden',
-  Shell,
   load: () => import('./Room'),
   reservedHeight: '100dvh',
   budgetKb: 3,

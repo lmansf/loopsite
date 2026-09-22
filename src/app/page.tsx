@@ -1,5 +1,6 @@
 import { AppShell } from '@/components/shell/AppShell';
 import { ROOMS } from '@/sections/registry';
+import { ShellFor } from '@/sections/shells';
 
 /**
  * src/app/page.tsx — the one canonical route.
@@ -18,7 +19,6 @@ export default function Page() {
   return (
     <AppShell>
       {ROOMS.map((room) => {
-        const Shell = room.Shell;
         return (
           <div
             key={room.id}
@@ -26,7 +26,7 @@ export default function Page() {
             data-slug={room.id}
             style={{ minHeight: room.reservedHeight }}
           >
-            <Shell />
+            <ShellFor slug={room.id} />
           </div>
         );
       })}

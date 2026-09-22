@@ -1108,9 +1108,11 @@ p { text-wrap:pretty; }
   top:calc(var(--ring-cy) + var(--ring-r) + 28px);
   font-size:var(--text-lead); line-height:1.3; letter-spacing:var(--ls-h2);
   color:var(--c-text); text-align:center; max-width:var(--measure-display);
-  opacity:0; animation:caption-in var(--dur-6) var(--ease-enter) 300ms both; }
+  /* painted from the first frame (Chrome never makes an element that first painted
+     at opacity 0 the LCP candidate); it settles in over --dur-6 after a 300 ms beat */
+  opacity:1; animation:caption-in var(--dur-6) var(--ease-enter) 300ms both; }
 #loop-title .echo { display:block; color:var(--c-text-muted); font-size:var(--text-sm); }
-@keyframes caption-in { from{opacity:0} to{opacity:1} }
+@keyframes caption-in { from{opacity:.35; transform:translate(-50%, 6px)} to{opacity:1; transform:translate(-50%, 0)} }
 [data-stage-state="engaged"] #loop-title { opacity:0; transition:opacity var(--dur-5) var(--ease-exit); }
 #loop-status { position:absolute; left:50%; transform:translateX(-50%);
   top:calc(var(--ring-cy) + var(--ring-r) + 28px); min-height:2.2em;

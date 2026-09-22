@@ -1,5 +1,4 @@
 import { asSectionId, type SectionModule } from '@/lib/types';
-import { Shell } from './Shell';
 
 const wear: SectionModule = {
   id: asSectionId('wear'),
@@ -9,7 +8,6 @@ const wear: SectionModule = {
   next: asSectionId('garden'),
   notch: 10,
   kind: 'expansion',
-  Shell,
   load: () => import('./Room'),
   reservedHeight: '100dvh',
   budgetKb: 9,

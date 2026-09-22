@@ -74,7 +74,7 @@ nav.ringway .notch {
   height: 12px;
   border-radius: 999px;
   /* a hollow notch must still read as a slot on a phone at arm's length */
-  border: 1px solid color-mix(in oklab, var(--c-text-muted) 75%, var(--c-border-strong));
+  border: 1px solid var(--c-text-muted);
   background: transparent;
   box-shadow: none;
   transition:
@@ -124,7 +124,15 @@ nav.ringway a[data-lock='true'] .notch {
   animation: loop-notch-lock var(--dur-5) var(--ease-loop) both;
 }
 
-/* the one-word label: revealed on hover/focus, always in the a11y tree */
+/* the one-word label with its hook line: revealed on hover/focus */
+nav.ringway .label .gap {
+  display: block;
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+}
 nav.ringway .label {
   position: absolute;
   left: 50%;
@@ -176,8 +184,8 @@ nav.ringway[data-complete='true'] a[data-visited='true'] .notch {
 /* very short phones (320×568 class): there is no vertical room for two rows
    under the caption, so the row compacts to 24 px-wide, 44 px-tall targets. */
 @media (max-height: 700px) and (max-width: 639px) {
-  nav.ringway .notches { grid-template-columns: repeat(12, 24px); column-gap: 0; }
-  nav.ringway a { width: 24px; min-width: 24px; transform: translateY(calc(-1 * var(--amp-lift) * 2 * var(--bow12))); }
+  /* two rows of six 44 px targets still fit: the rows just sit closer */
+  nav.ringway .notches { row-gap: 4px; }
   nav.ringway .hub { top: -1.6em; }
 }
 
@@ -278,7 +286,7 @@ a.next-arc {
 a.next-arc svg { width: 100%; height: 100%; overflow: visible; }
 a.next-arc .track {
   fill: none;
-  stroke: var(--c-border-strong);
+  stroke: var(--c-text-muted);
   stroke-width: 1;
 }
 a.next-arc .fill {
@@ -331,9 +339,11 @@ html:not([data-motion='reduce']) a.next-arc[data-escalated='true'] .traveller {
 
 @media (pointer: fine) and (min-width: 721px), (orientation: landscape) and (max-height: 500px) {
   a.next-arc {
-    left: auto;
-    right: 24px;
-    bottom: 12px;
+    /* hangs off the ring at five o'clock, clear of the caption beneath it */
+    left: calc(var(--ring-cx, 50vw) + var(--ring-r, 200px) * 0.62);
+    top: calc(var(--ring-cy, 50vh) + var(--ring-r, 200px) * 0.78);
+    right: auto;
+    bottom: auto;
     transform: none;
   }
 }
@@ -350,13 +360,13 @@ footer.loop-footer {
   display: grid;
   grid-template-columns: auto;
   justify-items: end;
-  column-gap: 0;
-  row-gap: 0;
+  column-gap: var(--sp-1);
+  row-gap: var(--sp-1);
   align-items: center;
 }
 footer.loop-footer button {
   position: relative;
-  min-height: 32px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
@@ -365,7 +375,7 @@ footer.loop-footer button {
   letter-spacing: var(--ls-label);
   color: var(--c-text-muted);
   border-radius: var(--radius-sm);
-  transition: color var(--dur-3) var(--ease-snap), transform var(--dur-2) var(--ease-snap);
+  transition: color var(--dur-3) var(--ease-snap), transform var(--dur-2) var(--ease-snap), opacity var(--dur-6) var(--ease-enter);
 }
 /* the second signifier: a small pip that fills when pressed, brightens on hover */
 footer.loop-footer button::before {
@@ -376,6 +386,13 @@ footer.loop-footer button::before {
   border: 1px solid currentColor;
   background: transparent;
   transition: background-color var(--dur-3) var(--ease-snap), border-color var(--dur-3) var(--ease-snap);
+}
+/* `keep this` and `send your loop` have nothing to act on before the first node:
+   they arrive with it (still reachable by keyboard, and shown on focus). */
+html[data-loop-js]:has(#stage[data-node-count='0']) footer.loop-footer button[data-control='keep']:not(:focus-visible),
+html[data-loop-js]:has(#stage[data-node-count='0']) footer.loop-footer button[data-control='share']:not(:focus-visible) {
+  opacity: 0;
+  pointer-events: none;
 }
 footer.loop-footer button:hover { color: var(--c-text); }
 footer.loop-footer button:active { transform: scale(var(--amp-scale-press)); }

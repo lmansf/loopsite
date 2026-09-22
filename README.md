@@ -36,7 +36,7 @@ already on the machine (see **Sandbox environment**).
 | `pnpm dev` | Dev server |
 | `pnpm build` / `pnpm start` | Production build / serve |
 | `pnpm typecheck` | `tsc --noEmit`, strict, `noUncheckedIndexedAccess` |
-| `pnpm lint` | ESLint (flat config; `next lint` does not exist in Next 16) |
+| `pnpm lint` | ESLint (flat config; `next lint` is not used) |
 | `pnpm test:unit` | `node --test` over `tests/unit/` — the share codec, geometry, rng |
 | `pnpm test:e2e` | Playwright: smoke, rooms, reduced motion, per-room specs |
 | `pnpm test:a11y` | Playwright, axe-core, the `@a11y` suite |
