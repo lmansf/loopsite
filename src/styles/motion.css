@@ -17,9 +17,12 @@
    ONLY on a swap. It is not applied on load — the first painted frame must
    already carry the premise, the heading, the night, block 1 and its open
    aside at full opacity (§B, rubric A1/A5), so a fade-from-zero at load would
-   cost the one thing this build is built around. WP-C sets `data-swap` on the
-   entering account for one frame. Under reduced motion the swap is
-   instantaneous (§C.16). */
+   cost the one thing this build is built around. `<Ambient>` — the only
+   client module WP-C owns — sets `data-swap` on the entering account when
+   `html[data-s]` changes AFTER a pointerdown, keydown or popstate, and clears
+   it again; before one of those the document is still settling on the account
+   it arrived in, and an arrival is not a swap. Under reduced motion the
+   attribute is never set at all and the swap is instantaneous (§C.16). */
 :root[data-motion="auto"] .account[data-swap] {
   animation: loop-fade-in 160ms var(--ease-enter) both;
 }
